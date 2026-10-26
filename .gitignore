@@ -1,0 +1,12 @@
+/*
+!.gitignore
+!Reconstruct.bat
+!RECONSTR
+!RECONSTR/Borland
+EXAMPLES
+RECONSTR/Borland/DOC
+RECONSTR/BONUS
+*.OBJ
+*.LIB
+*.BAK
+RECONSTR/OBJ/*
