@@ -1,0 +1,96 @@
+HOW TO COMILE 100% IDENTICAL RECREATIONS
+========================================
+
+Audio Library : compile with Borland C++ 2.0
+Game & Setup  : compile with Borland C++ 3.1
+
+
+HOCUS POCUS SOURCE CODE RECONSTRUCTION TIMELINE
+===============================================
+
+SETUP
+=====
+
+2015-12-11: started disassembly
+2015-12-14: started C port
+2015-12-16: C code "finished" (creates same default config file as original EXE)
+
+2026-01-21:
+- SETUP.C now compiles into a 100% identical copy of SETUP.EXE
+
+
+GAME
+====
+
+2015-10-09: started disassembly
+2015-12-14: started C port (TGameConfig struct)
+2015-12-16: TGameConfig struct finished
+2015-12-20: disassembly mostly finished (sound code & a few variable names remaining)
+2016-01-08: C code mostly finished, except HP_GAME.C and Apogee Sound System code
+2016-01-20: rest of HP_GAME.C implemented, project compiles (no sound code)
+2016-01-21: fixed: tile and text drawing bugs, tileset/backdrop number bugs and more
+2016-01-21: fully playable, but enemies spawn shots too often or not at all
+2016-01-22: fixed: highscore check, boss4 respawn, boss healthbar, demo playback (after 1st demo)
+2016-01-25: fixed: twink spawning at wrong location when destroying shootable bricks
+2016-01-25: demo playback differs from original, but otherwise no noticeable bugs
+2016-09-20:
+	fixed: CheckEnemyHitsPlayerShot used shotY[n] instead of shotY[n]+2
+	fixed: UpdateTiles was called when tiletick was 0 instead of 1
+	fixed: rapidfireCountdown was set to 400 instead of 600 in CheckTiles
+	fixed: UpdateParticles increased vy again instead of increasing vx
+2016-09-21:
+	fixed: D'oh! UpdateParticles should not increase vx at all
+2017-07-02:
+	fixed: StartPlanarVGA had a bug that was not noticeable in DOSBox
+2019-02-01:
+	fixed: SpawnSnow didn't check if current snowX was -99, which broke the demos
+2019-06-02:
+	changed maximum joystick values for avoiding endless loops in joystick code:
+	500 was too low for faster systems
+	(finally got an actual gameport joystick and tested on a Pentium 200 MHz)
+
+2026-01-21:
+- modified the code to get a more accurate reconstruction
+- SETUP.C now compiles into a 100% identical copy of SETUP.EXE
+- wrote dummy implementation for all Apogee Sound System routines used by the
+  game code
+- started modifying the game code & rearranged uninitialized variables
+
+2026-01-22:
+- moved the CopyBytes and StartPlanarVGA functions into separate ASM files
+- finally got all game-code functions to compile into the correct sizes
+- modified dummy implementation to make sure all the necessary library
+  functions get linked into the EXE
+- all that's left to do is to reconstruct the Apogee Sound System code...
+  (do I really have to?)
+
+2026-01-23:
+- game code is as close to the original as possible (without the proper sound
+  code)
+
+2026-01-24:
+- started reconstructing the Apogee Sound System (as used in the executables
+  without Gravis Ultrasound support)
+
+2026-01-25:
+- most of the Apogee Sound System code is done, just some Pro AudioSpectrum
+  stuff left to do
+
+2026-01-26:
+- sound code compiles, but it looks like the original code was compiled with
+  different optimization settings and maybe even a different version of the
+  compiler...
+- Looks like Borland C++ 2.0 was used. Or at least I got it to create some
+  matching code after some trial and error with the optimization settings.
+- got LL_MAN.C, MIDI.C, TASK_MAN.C, FX_MAN.C and MUSIC.C to compile into
+  functions of the correct lengths
+
+2026-01-27:
+- finally got the code to compile into a 100% identical copy of the original
+  registered version 1.1 executable (HOCUS.EXE)
+
+2026-10-21:
+- added GPL comments to all source files to prepare the public release
+
+2026-10-22:
+- added support for the registered version 1.0 and the shareware version 1.0

@@ -1,0 +1,46 @@
+/* Reconstructed Hocus Pocus Source Code
+ * Copyright (C) 2026 K1n9_Duk3
+ *
+ * Original Code by Mike Voss, Copyright (c) 1994 Moonlite Software
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+#ifndef __HP_FILES_H__
+#define __HP_FILES_H__
+
+#include "HP_DEFS.H"
+
+enum
+{
+#define FILEENTRY(name, offset, size) name,
+#include "HP_FAT.H"
+#undef FILEENTRY
+	NUMFILEENTRIES
+};
+
+void OpenDatFile(void);
+void CloseDatFile(void);
+void SeekDat(Uint32 offset);
+void SeekDatChunk(Uint16 chunknum);
+void ReadFromDat(Uint32 offset, Uint32 size, void *buffer);
+void WriteToDat(Uint32 offset, Uint32 size, void *buffer);
+void ReadDatChunk(Uint16 chunknum, void *buffer);
+Sint16 ReadFromFile(char *filename, void *buffer);
+Sint16 WriteToFile(char *filename, void *buffer, Uint16 size);
+void WriteDatChunk(Uint16 chunknum, void *buffer);
+Uint8 ReadByteFromDat(void);
+
+#endif

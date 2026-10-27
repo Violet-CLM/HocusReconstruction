@@ -1,0 +1,154 @@
+COMPILERDIR = X:
+
+.AUTODEPEND
+
+OUTDIR = OBJ
+MAKEFILE = makefile
+
+.PATH.obj = $(OUTDIR)
+
+#		*Translator Definitions*
+BINPATH     = $(COMPILERDIR)\BIN\	# 
+LIBPATH     = $(COMPILERDIR)\LIB
+INCLUDEPATH = $(COMPILERDIR)\INCLUDE
+
+CC          = $(BINPATH)bcc
+TASM        = $(BINPATH)TASM
+TLIB        = $(BINPATH)tlib
+TLINK       = $(BINPATH)tlink
+
+
+#		*Implicit Rules*
+.c.obj:
+  $(CC) +HOCPOC.CFG -c {$< }
+
+#		*List Macros*
+
+
+EXE_dependencies =  \
+ hp_main.obj \
+ hp_graph.obj \
+ hp_files.obj \
+ hp_menu.obj \
+ hp_intro.obj \
+ hp_level.obj \
+ hp_game.obj \
+ hp_draw.obj \
+ hp_sound.obj \
+ hp_sys.obj \
+ bytecopy.obj \
+ vgamodex.obj \
+ ass\audiolib.lib
+
+#		*Explicit Rules*
+$(OUTDIR)\hocpoc.exe: hocpoc.cfg $(EXE_dependencies)
+  $(TLINK) /s/i/c/P-/L$(LIBPATH) @&&|
+c0l.obj+
+$(OUTDIR)\hp_main.obj+
+$(OUTDIR)\hp_graph.obj+
+$(OUTDIR)\hp_files.obj+
+$(OUTDIR)\hp_menu.obj+
+$(OUTDIR)\hp_intro.obj+
+$(OUTDIR)\hp_level.obj+
+$(OUTDIR)\hp_game.obj+
+$(OUTDIR)\hp_draw.obj+
+$(OUTDIR)\hp_sound.obj+
+$(OUTDIR)\hp_sys.obj+
+$(OUTDIR)\bytecopy.obj+
+$(OUTDIR)\vgamodex.obj
+$(OUTDIR)\hocpoc,$(OUTDIR)\hocpoc
+ass\audiolib.lib+
+emu.lib+
+mathl.lib+
+cl.lib
+|
+
+
+#		*Individual File Dependencies*
+hp_main.obj: hocpoc.cfg hp_main.c 
+
+hp_graph.obj: hocpoc.cfg hp_graph.c 
+
+hp_files.obj: hocpoc.cfg hp_files.c 
+
+hp_menu.obj: hocpoc.cfg hp_menu.c 
+
+hp_intro.obj: hocpoc.cfg hp_intro.c 
+
+hp_level.obj: hocpoc.cfg hp_level.c 
+
+hp_game.obj: hocpoc.cfg hp_game.c 
+
+hp_draw.obj: hocpoc.cfg hp_draw.c 
+
+hp_sound.obj: hocpoc.cfg hp_sound.c 
+
+hp_sys.obj: hocpoc.cfg hp_sys.c 
+
+bytecopy.obj: hocpoc.cfg bytecopy.asm 
+	$(TASM) /MX /ZI /O BYTECOPY.ASM,$(OUTDIR)\BYTECOPY.OBJ
+
+vgamodex.obj: hocpoc.cfg vgamodex.asm 
+	$(TASM) /MX /ZI /O VGAMODEX.ASM,$(OUTDIR)\VGAMODEX.OBJ
+
+#		*Individual File Dependencies*
+setup.obj: hocset.cfg setup.c 
+	$(CC) +HOCSET.CFG -c setup.c
+
+#		*Compiler Configuration File*
+hocpoc.cfg: $(MAKEFILE)
+  copy &&|
+-ml
+-1
+-a
+-v
+-vi-
+-wpro
+-weas
+-wpre
+-n$(OUTDIR)
+-I$(INCLUDEPATH)
+-L$(LIBPATH)
+| hocpoc.cfg
+
+
+#		*Explicit Rules*
+$(OUTDIR)\hocset.exe: hocset.cfg setup.obj
+  $(TLINK) /x/i/c/P-/L$(LIBPATH) @&&|
+c0s.obj+
+$(OUTDIR)\setup.obj
+$(OUTDIR)\hocset
+		# no map file
+cs.lib
+|
+
+
+#		*Compiler Configuration File*
+hocset.cfg: $(MAKEFILE)
+  copy &&|
+-f-
+-v
+-O
+-Oe
+-Ob
+-Z
+-k-
+-rd
+-vi-
+-wpro
+-weas
+-wpre
+-n$(OUTDIR)
+-I$(INCLUDEPATH)
+-L$(LIBPATH)
+| hocset.cfg
+
+
+game: $(OUTDIR)\hocpoc.exe
+
+setup: $(OUTDIR)\hocset.exe
+
+all: game setup
+
+clean:
+	del $(OUTDIR)\*.obj
