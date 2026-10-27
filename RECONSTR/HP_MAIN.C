@@ -273,7 +273,7 @@ void nullsub(void)
 {
 }
 
-void Startup(void)
+void Startup(Uint8 skipToMenu)
 {
 	register Sint16 i;
 	
@@ -284,29 +284,33 @@ void Startup(void)
 	JoyCalibrateCentered();
 	StartupSound();
 	PC_Startup();
-	printf(
-		"\n"
-		"General MIDI timbres for Yamaha OPL-2- and OPL-3-based sound cards were\n"
-		"produced by The Fat Man(TM) and developed by K. Weston Phelan and George\n"
-		"Alistar Sanger.  Copyright 1993, The Fat Man(TM)\n"
-		"\n"
-		"Press a key...\n");
-	WaitMilliSecs(5000);
-	GetPalette(currPalette, 0, 256);
-	FadeToBlack(140);
-	InitGraphics();
+	if (!skipToMenu) {
+		printf(
+			"\n"
+			"General MIDI timbres for Yamaha OPL-2- and OPL-3-based sound cards were\n"
+			"produced by The Fat Man(TM) and developed by K. Weston Phelan and George\n"
+			"Alistar Sanger.  Copyright 1993, The Fat Man(TM)\n"
+			"\n"
+			"Press a key...\n");
+		WaitMilliSecs(5000);
+		GetPalette(currPalette, 0, 256);
+		FadeToBlack(140);
+		InitGraphics();
 	
 #ifdef VERSION_11
-	FadeToBlack(1);
-	if (DrawPCX_File("tables.dat"))
-	{
-		FadeFromBlack(20);
-		WaitMilliSecs(5000);
-		FadeToBlack(20);
-		for (i=0; i<0x300; i++)
-			currPalette[i] = 0;
-	}
+		FadeToBlack(1);
+		if (DrawPCX_File("tables.dat"))
+		{
+			FadeFromBlack(20);
+			WaitMilliSecs(5000);
+			FadeToBlack(20);
+			for (i=0; i<0x300; i++)
+				currPalette[i] = 0;
+		}
 #endif
+	} else { //the -MENU command line option
+		InitGraphics(); //this is probably still an important thing to call
+	}
 
 	for (i=0; i<16; i++)
 	{
@@ -402,6 +406,7 @@ void main (int argc, char **argv)
 	register Sint16 i;
 	Sint8 menuResult, quit=false;
 	Sint16 pos;
+	Uint8 skipToMenu = false;
 
 	strcpy(configPath, "");	//useless call
 	if (!getenv(CONFIG_ENV))
@@ -455,9 +460,24 @@ sensitive). It does seem to work for DOSBox, though.
 		exit(0);
 	}
 
+/*
+Change to original
+Check for command line options! The original game did not use them.
+*/
+	i = 0;
+	while (++i < argc) {
+		if (!strcmpi(argv[i], "-MENU"))
+			skipToMenu = true;
+	}
+
 	noAudio = notUsed = 0;
-	Startup();
-	IntroScreens();
+	if (!skipToMenu) { //do the regular startup routine
+		Startup(false);
+		IntroScreens();
+	} else { //if the -MENU option was passed:
+		Startup(true); //don't pause over the music credit text while still in the command prompt
+		//don't call IntroScreens at all
+	}
 	SetToBlack();
 	LoadPaletteChunk(GAMEPAL_PAL, 0, 0);
 	LoadPaletteChunk(MENUPAL_PAL, 128, 0);
