@@ -477,6 +477,7 @@ Check for command line options! The original game did not use them.
 	} else { //if the -MENU option was passed:
 		Startup(true); //don't pause over the music credit text while still in the command prompt
 		//don't call IntroScreens at all
+		PlayMusicChunk(MUSIC03_MID, true); //menu music, normally started inside IntroScreens
 	}
 	SetToBlack();
 	LoadPaletteChunk(GAMEPAL_PAL, 0, 0);

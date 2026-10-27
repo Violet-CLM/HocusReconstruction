@@ -2,7 +2,7 @@
 .vs
 !.gitignore
 !README.md
-!Reconstruct.bat
+!HocMake.bat
 !RECONSTR
 !RECONSTR/Borland
 EXAMPLES

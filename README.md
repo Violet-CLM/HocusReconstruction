@@ -6,17 +6,17 @@ This repository is a place to make changes (fixes/additions) to Hocus Pocus (199
 
 ## Installation
 
-On your computer, this repository must be in the same folder as a copy of the Hocus Pocus game, preferably the Registered 1.1. That is to say, `Hocus.dat` and `Reconstruct.bat` must be in the same folder, and `RECONSTR` must be a subfolder of that same folder.
+On your computer, this repository must be in the same folder as a copy of the Hocus Pocus game, preferably the Registered 1.1. That is to say, `Hocus.dat` and `HocMake.bat` must be in the same folder, and `RECONSTR` must be a subfolder of that same folder.
 
 ## Compilation
 
-Create a shortcut that runs `Reconstruct.bat` through your local copy of DOSBox, then run that shortcut. You can use the same shortcut for building and playing the game: Reconstruct.bat builds any files that have been changed since you last built the game, and then runs the game.
+Create a shortcut that runs `HocMake.bat` through your local copy of DOSBox, then run that shortcut. You can use the same shortcut for building and playing the game: HocMake.bat builds any files that have been changed since you last built the game, and then runs the game.
 
 For example, your shortcut might be:
-**Target:** `"C:\DOSBOX\DOSBox.exe" "C:\Games\DOS\HocusRec\Recons~1.bat"`
+**Target:** `"C:\DOSBOX\DOSBox.exe" "C:\Games\DOS\HocusRec\HocMake.bat"`
 **Start in:** `C:\Games\DOS\HocusRec\`
 
-If you want to run the game with any command line options, either change the last line in Reconstruct.bat (e.g. `HOCUS -MENU` instead of just `HOCUS`), or else make yourself a separate shortcut that opens Hocus.exe directly.
+If you want to run the game with any command line options, either change the last line in HocMake.bat (e.g. `HOCUS -MENU` instead of just `HOCUS`), or else make yourself a separate shortcut that opens Hocus.exe directly.
 
 ## Context/Credits
 
