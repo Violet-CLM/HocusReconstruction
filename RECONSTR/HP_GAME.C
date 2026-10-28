@@ -3579,8 +3579,10 @@ restart:
 			SetDisplayPageAtVBL(!currDisplayPage);
 		}
 		CheckEnemyHitsPlayerShot();
-		CheckEnemyShotHitsPlayer();
-		CheckEnemyHitsPlayer();
+		if (!teleportCounter) { //don't get hurt while warping (https://pckf.com/viewtopic.php?t=18165)
+			CheckEnemyShotHitsPlayer();
+			CheckEnemyHitsPlayer();
+		}
 		UpdateActorSpawns();
 		UpdateEnemyShots();
 		UpdateActors();
