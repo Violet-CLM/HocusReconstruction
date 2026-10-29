@@ -4480,9 +4480,15 @@ restart:
 		{
 			levelEnded = end_ended;
 		}
-		if (levelDoneCountdown == 1)
+		if (levelDoneCountdown == 1) //natural end of the countdown
 		{
 			levelEnded = end_ended;
+		}
+		else if (levelDoneCountdown < 0) //in response to a cheat code
+		{
+			levelDoneCountdown = 0; //don't keep skipping future levels too
+			levelEnded = end_ended;
+			result = 1;
 		}
 		if (demoMode == DEMO_RECORD)
 		{

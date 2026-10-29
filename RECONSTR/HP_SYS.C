@@ -73,6 +73,9 @@ const char CHEAT_FEELGOOD[] = { KEY_F, KEY_E, KEY_E, KEY_L, KEY_G, KEY_O, KEY_O,
 const char CHEAT_BLAKE[] = { KEY_B, KEY_L, KEY_A, KEY_K, KEY_E };
 const char CHEAT_BANANA[] = { KEY_B, KEY_A, KEY_N, KEY_A, KEY_N, KEY_A };
 const char CHEAT_QUARK[] = { KEY_Q, KEY_U, KEY_A, KEY_R, KEY_K };
+//new cheats added to the game:
+//note: can't use C, M, P, S, V because those are all functional keys
+const char CHEAT_ETHER[] = { KEY_E, KEY_T, KEY_H, KEY_E, KEY_R }; //the level skip code from Realms of Chaos
 
 /*
 =============================================================================
@@ -197,7 +200,7 @@ void ClearKeyboardBuffer(void)	//unused, not sure what this really does
 }
 
 void ClearCheatCode(void) {
-	cheatcode[sizeof(cheatcode) - 1)] = 0; //only need to null the most recently typed letter
+	cheatcode[sizeof(cheatcode) - 1] = 0; //only need to null the most recently typed letter
 }
 
 void KB_Startup(void)
@@ -324,6 +327,9 @@ void interrupt KB_Service(void)
 			tick5 = 5;
 		}
 #endif
+		else if (COMPARE_CHEAT(CHEAT_ETHER)) {
+			levelDoneCountdown = -1; //special value to skip the summing up screen
+		}
 #undef COMPARE_CHEAT
 	}
 	
