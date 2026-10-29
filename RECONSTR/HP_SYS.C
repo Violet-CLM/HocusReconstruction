@@ -23,6 +23,7 @@
 #include <DOS.H>
 #include <STDIO.H>
 #include <STDLIB.H>
+#include <STRING.H> //memcmp, memmove
 
 #include "HP_DEFS.H"
 #include "HP_MAIN.H"
@@ -64,9 +65,14 @@ Uint16 pcTickRate = 140;
 ////////////////////////////
 
 void interrupt (*oldInt9)(void);
-Uint16 cheatcode;
+char cheatcode[8]; //no cheat code is more than 8 bytes long, but this compiler won't support 64-bit ints
 Uint16 joyDirX, joyDirY;
 
+//cheat codes, for memcmp:
+const char CHEAT_FEELGOOD[] = { KEY_F, KEY_E, KEY_E, KEY_L, KEY_G, KEY_O, KEY_O, KEY_D };
+const char CHEAT_BLAKE[] = { KEY_B, KEY_L, KEY_A, KEY_K, KEY_E };
+const char CHEAT_BANANA[] = { KEY_B, KEY_A, KEY_N, KEY_A, KEY_N, KEY_A };
+const char CHEAT_QUARK[] = { KEY_Q, KEY_U, KEY_A, KEY_R, KEY_K };
 
 /*
 =============================================================================
@@ -190,6 +196,10 @@ void ClearKeyboardBuffer(void)	//unused, not sure what this really does
 	int86(0x21, &regs, &regs);
 }
 
+void ClearCheatCode(void) {
+	cheatcode[sizeof(cheatcode) - 1)] = 0; //only need to null the most recently typed letter
+}
+
 void KB_Startup(void)
 {
 	Uint8 *flags1 = MK_FP(0, 0x417), *flags2 = MK_FP(0, 0x418);
@@ -199,7 +209,7 @@ void KB_Startup(void)
 
 	oldInt9 = getvect(9);
 	setvect(9, KB_Service);
-	cheatcode = 0;
+	ClearCheatCode();
 	ClearKeys();
 	*flags1 = 0;
 	*flags2 = 0;
@@ -287,46 +297,35 @@ void interrupt KB_Service(void)
 		}
 	}
 	//handle cheat codes:
-	if (lastKey == KEY_F)
-		cheatcode = 0;
-	if (lastKey == KEY_Q)
-		cheatcode = 0;
-	if (lastKey == KEY_B)
-		cheatcode = 0;
-#if 0
-	//quick & dirty bugfix:
-	if ((lastKey & 0x7F) > KEY_M)
-		cheatcode = 0;
-#endif
-	cheatcode += lastKey;	//this is bad design (player control keys are added, too)
-	if (cheatcode == 1466)	//FEELGOOD
-	{
-		cheatcode = 0;
-		playerHealth = 100;
-	}
-	if (cheatcode == 982)	//BLAKE
-	{
-		gotKey1 = true;
-		gotKey2 = true;
-	}
-#if !SHAREWARE
-	if (cheatcode == 888)	//QUARK
-	{
-		if (!rapidFireCountdown)
-		{
-			oldFirepower = playerFirepower;
-			playerFirepower = 5;
+	if (lastKey && !(lastKey & 0x80)) { //key down, not key up
+		memmove(cheatcode, cheatcode + 1, sizeof(cheatcode) - 1); //move the last seven letters, one byte to the left
+		cheatcode[sizeof(cheatcode) - 1] = lastKey; //most recently typed letter is at the far right
+
+#define COMPARE_CHEAT(x) !memcmp(cheatcode + (sizeof(cheatcode) - sizeof(x)), x, sizeof(x))
+		if (COMPARE_CHEAT(CHEAT_FEELGOOD)) {
+			ClearCheatCode();
+			playerHealth = 100;
+		} else if (COMPARE_CHEAT(CHEAT_BLAKE)) { //compares the rightmost (most recently typed) five bytes of the cheatcode array
+			gotKey1 = true;
+			gotKey2 = true;
 		}
-		rapidFireCountdown = 600;
-	}
-	if (cheatcode == 1240)	//BANANA
-	{
-		if (!powershotsLeft)
-			powershotsLeft = 3;
-		tick1 = 1;
-		tick5 = 5;
-	}
+#if !SHAREWARE
+		else if (COMPARE_CHEAT(CHEAT_QUARK)) {
+			if (!rapidFireCountdown)
+			{
+				oldFirepower = playerFirepower;
+				playerFirepower = 5;
+			}
+			rapidFireCountdown = 600;
+		} else if (COMPARE_CHEAT(CHEAT_BANANA)) {
+			if (!powershotsLeft)
+				powershotsLeft = 3;
+			tick1 = 1;
+			tick5 = 5;
+		}
 #endif
+#undef COMPARE_CHEAT
+	}
 	
 	//handle hotkeys:
 	if (lastKey == KEY_P)
