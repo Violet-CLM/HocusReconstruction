@@ -48,6 +48,7 @@ extern Sint16 levelDoneCountdown;
 extern Sint16 gotKey1;
 extern Sint16 gotKey2;
 extern Sint16 rapidFireCountdown;
+extern Sint16 hideCountdown;
 extern Sint16 oldFirepower;
 extern Sint16 powershotsLeft;
 extern Sint16 tick1;
@@ -76,6 +77,7 @@ const char CHEAT_QUARK[] = { KEY_Q, KEY_U, KEY_A, KEY_R, KEY_K };
 //new cheats added to the game:
 //note: can't use C, M, P, S, V because those are all functional keys
 const char CHEAT_ETHER[] = { KEY_E, KEY_T, KEY_H, KEY_E, KEY_R }; //the level skip code from Realms of Chaos
+const char CHEAT_BOUF[] = { KEY_B, KEY_O, KEY_U, KEY_F }; //the invincibility code from Jazz Jackrabbit
 
 /*
 =============================================================================
@@ -329,6 +331,8 @@ void interrupt KB_Service(void)
 #endif
 		else if (COMPARE_CHEAT(CHEAT_ETHER)) {
 			levelDoneCountdown = -1; //special value to skip the summing up screen
+		} else if (COMPARE_CHEAT(CHEAT_BOUF)) {
+			hideCountdown = hideCountdown ? 0 : 0xFFFFu;
 		}
 #undef COMPARE_CHEAT
 	}

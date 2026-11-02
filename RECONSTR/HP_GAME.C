@@ -305,6 +305,12 @@ static char _dummy9[24];	// never used
 // Functions:
 //////////////
 
+void HurtPlayer(Sint16 delay) { //wasn't a function originally
+	playerHealth += damage[skill];
+	hurtCountdown = delay;
+	PlaySound(SND_OUCH);
+}
+
 void CheckEnemyShotHitsPlayer(void)
 {
 	register Sint16 i;
@@ -318,14 +324,12 @@ void CheckEnemyShotHitsPlayer(void)
 	{
 		if (enemyshotState[i] != -1)
 		{
-			if (!enemyshotDelay[i] && !hurtCountdown && !hideCountdown)
+			if (!enemyshotDelay[i])
 			{
 				if (enemyshotX[i] <= maxX && enemyshotX[i]+enemyshotWidth[i]-1 >= minX
 				&& enemyshotY[i] <= maxY && enemyshotY[i]+enemyshotHeight[i]-1 >= minY)
 				{
-					playerHealth += damage[skill];
-					hurtCountdown = 20;
-					PlaySound(SND_OUCH);
+					HurtPlayer(20);
 					enemyshotState[i] = -1;
 				}
 			}
@@ -344,7 +348,7 @@ void CheckEnemyHitsPlayer(void)
 	minY = playerY + 6;
 	for (i=0; i<MAX_ACTORS; i++)
 	{
-		if (actorType[i] != -1 && !hideCountdown && !actorSpawnCountdown[i])
+		if (actorType[i] != -1 && !actorSpawnCountdown[i])
 		{
 			if (actorX[i] <= maxX && actorX[i]+actorWidth[i]-1 >= minX
 			&& actorY[i] <= maxY && actorY[i]+actorHeight[i]-1 >= minY)
@@ -355,9 +359,7 @@ void CheckEnemyHitsPlayer(void)
 				}
 				else if (!hurtCountdown)
 				{
-					playerHealth += damage[skill];
-					hurtCountdown = 20;
-					PlaySound(SND_OUCH);
+					HurtPlayer(20);
 				}
 			}
 		}
@@ -1686,17 +1688,15 @@ draw_loop:
 	}
 }
 
-void DrawSprite_White(Sint16 sprite, Sint16 x, Sint16 y, Sint16 dir, Sint16 frame)
+void DrawSprite_SingleColor(Sint16 sprite, Sint16 x, Sint16 y, Sint16 dir, Sint16 frame, Uint16 pixOff)
 {
 	register Uint16 layoutOff, screenOff;
-	Uint16 pixOff;
 	Uint8 flag;
-	
+
 	layoutOff = spriteinfo[sprite].layoutStarts[dir][frame];
-	pixOff = pixOffWhite;
 	screenOff = y*80 + x;
 	SetWriteMode(1);
-	
+
 draw_loop:
 	flag = spriteLayouts[sprite][layoutOff];
 	layoutOff++;
@@ -1721,18 +1721,17 @@ draw_loop:
 	}
 }
 
-void DrawSpriteClipped_White(Sint16 sprite, Sint16 width, Sint16 x, Sint16 y, Sint16 dir, Sint16 frame)
+void DrawSpriteClipped_SingleColor(Sint16 sprite, Sint16 width, Sint16 x, Sint16 y, Sint16 dir, Sint16 frame, Uint16 pixOff)
 {
 	register Sint16 ix;
 	Uint16 layoutOff;
 	Sint16 skiplen;
 	Sint16 iy;
-	Uint16 pixOff, screenOff;
+	Uint16 screenOff;
 	Uint8 flag;
 	
 	ix = iy = 0;
 	layoutOff = spriteinfo[sprite].layoutStarts[dir][frame];
-	pixOff = pixOffWhite;
 	screenOff = y*80 + x;
 	SetWriteMode(1);
 	
@@ -1776,96 +1775,9 @@ draw_loop:
 		goto draw_loop;
 	}
 }
-
-void DrawSprite_Red(Sint16 sprite, Sint16 x, Sint16 y, Sint16 dir, Sint16 frame)
-{
-	register Uint16 layoutOff, screenOff;
-	Uint16 pixOff;
-	Uint8 flag;
-	
-	layoutOff = spriteinfo[sprite].layoutStarts[dir][frame];
-	pixOff = pixOffRed;
-	screenOff = y*80 + x;
-	SetWriteMode(1);
-	
-draw_loop:
-	flag = spriteLayouts[sprite][layoutOff];
-	layoutOff++;
-	if (flag == 0)
-	{
-		SetPlaneMask(spriteLayouts[sprite][layoutOff]);
-		screenOff = y*80 + x;
-		layoutOff++;
-		goto draw_loop;
-	}
-	else if (flag == 1)
-	{
-		screenOff += *(Uint16 *)(&spriteLayouts[sprite][layoutOff]);
-		layoutOff += 2;
-		goto draw_loop;
-	}
-	else if (flag == 2)
-	{
-		drawPtr[screenOff] = screenpagePtr[2][pixOff];
-		screenOff++;
-		goto draw_loop;
-	}
-}
-
 void DrawSpriteClipped_Red(Sint16 sprite, Sint16 width, Sint16 x, Sint16 y, Sint16 dir, Sint16 frame)
 {
-	register Sint16 ix;
-	Uint16 layoutOff;
-	Sint16 skiplen;
-	Sint16 iy;
-	Uint16 pixOff, screenOff;
-	Uint8 flag;
-	
-	ix = iy = 0;
-	layoutOff = spriteinfo[sprite].layoutStarts[dir][frame];
-	pixOff = pixOffRed;
-	screenOff = y*80 + x;
-	SetWriteMode(1);
-	
-draw_loop:
-	flag = spriteLayouts[sprite][layoutOff];
-	layoutOff++;
-	if (flag == 0)
-	{
-		SetPlaneMask(spriteLayouts[sprite][layoutOff]);
-		screenOff = y*80 + x;
-		layoutOff++;
-		ix = iy = 0;
-		goto draw_loop;
-	}
-	else if (flag == 1)
-	{
-		skiplen = *(Sint16 *)(&spriteLayouts[sprite][layoutOff]);
-		layoutOff += 2;
-		screenOff += skiplen;
-		ix += skiplen;
-		if (ix > width)
-		{
-			iy += ix / 80;
-			ix = ix % 80;
-		}
-		goto draw_loop;
-	}
-	else if (flag == 2)
-	{
-		if (ix+x >= 0 && ix+x < 80 && iy+y >= 0 && iy+y < 160)
-		{
-			drawPtr[screenOff] = screenpagePtr[2][pixOff];
-		}
-		screenOff++;
-		ix++;
-		if (ix > width)
-		{
-			iy += ix / 80;
-			ix = ix % 80;
-		}
-		goto draw_loop;
-	}
+	DrawSpriteClipped_SingleColor(sprite, width, x, y, dir, frame, pixOffRed);
 }
 
 void UpdateCam(void)
@@ -2614,6 +2526,10 @@ void CheckTiles(void)
 	{
 		hurtCountdown--;
 	}
+	if (hideCountdown) {
+		if (!--hideCountdown)
+			PlaySound(SND_TELEPORT);
+	}
 	for (dx=-1; dx<=1; dx++)
 	{
 		infoindex = playerTileY*240 + (playerX+1)/2 + dx;
@@ -2679,18 +2595,14 @@ void CheckTiles(void)
 					keep = 1;
 					if (!hurtCountdown && !hideCountdown && !dx)
 					{
-						playerHealth += damage[skill];
-						hurtCountdown = 20;
-						PlaySound(SND_OUCH);
+						HurtPlayer(20);
 					}
 				}
 				else if (itemtype == 9)
 				{
 					if (!hurtCountdown && !hideCountdown && !dx)
 					{
-						playerHealth += damage[skill];
-						hurtCountdown = 10;
-						PlaySound(SND_OUCH);
+						HurtPlayer(10);
 					}
 					keep = 1;
 				}
@@ -3221,9 +3133,8 @@ restart:
 	for (i=0; i<280; i++)
 	{
 		SetWriteMode(0);
-		if (ReadPixel((i%20)<<4, (i/20)<<4)==255)
+		if (ReadPixel((i%20)<<4, (i/20)<<4)==255) //tile has a white pixel in the top left corner, that means it's the final pixel
 		{
-			pixOffLineardata = pixindex<<2;
 			break;
 		}
 		SetWriteMode(1);
@@ -3237,14 +3148,9 @@ restart:
 			}
 		}
 	}
-	//Note: you could use pixindex instead of pixOffLineardata>>2 below! (increase by 1 instead of 4)
-	screenpagePtr[2][pixOffLineardata>>2] = 0x60;	//white (actually very light blue)
-	pixOffWhite = pixOffLineardata>>2;
-	pixOffLineardata += 4;
-	screenpagePtr[2][pixOffLineardata>>2] = 0x70;	//red
-	pixOffRed = pixOffLineardata>>2;
-	pixOffLineardata += 4;
-	pixOffSpritestart = pixOffLineardata>>2;
+	screenpagePtr[2][pixOffWhite = pixindex++] = 0x60;	//white (actually very light blue)
+	screenpagePtr[2][pixOffRed = pixindex++] = 0x70;	//red
+	pixOffSpritestart = pixindex;
 	pixOffLineardata = 0;
 	for (i=0; i<MAX_SPRITES; i++)
 	{
@@ -3423,143 +3329,137 @@ restart:
 				PlaySound(SND_YAHOO);
 			}
 		}
-		if (!hideCountdown)
+		if (!teleportCounter)
 		{
-			if (!teleportCounter)
+			if (playerFiring)
 			{
-				if (playerFiring)
+				if (playerAimingUp && !playerWalking)
 				{
-					if (playerAimingUp && !playerWalking)
-					{
-						playerFrame = spriteinfo[SPR_PLAYER].shootStart +1;
-					}
-					else if (!playerWalking)
-					{
-						playerFrame = spriteinfo[SPR_PLAYER].shootStart;
-					}
+					playerFrame = spriteinfo[SPR_PLAYER].shootStart +1;
 				}
-				if (playerJumping)
+				else if (!playerWalking)
 				{
-					playerFrame = spriteinfo[SPR_PLAYER].jumpStart;
+					playerFrame = spriteinfo[SPR_PLAYER].shootStart;
 				}
-				if (playerJumping && playerJumpIndex > maxJumpIndex)
+			}
+			if (playerJumping)
+			{
+				playerFrame = spriteinfo[SPR_PLAYER].jumpStart;
+			}
+			if (playerJumping && playerJumpIndex > maxJumpIndex)
+			{
+				playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
+			}
+			if (playerFalling)
+			{
+				playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
+			}
+			// draw player sprite:
+			///////////////////////
+			if (hideCountdown & 1) {
+				//draw nothing
+			}
+			else if (
+				(rapidFireCountdown & 1) ||
+				(rapidFireCountdown && hideCountdown) //if you have both white and black potions, alternate between white and invisible
+			)
+			{
+				if (playerScreenY < 0)
 				{
-					playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
+					DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
 				}
-				if (playerFalling)
+				else
 				{
-					playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
+					DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
 				}
-				// draw player sprite:
-				///////////////////////
-				// this is redundant:
+			}
+			else if (
+				(hurtCountdown & 1) ||
+				(hurtCountdown && rapidFireCountdown) //if you're hurt and have a white potion, alternate between white and red
+			)
+			{
+				if (playerScreenY < 0)
+				{
+					DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
+				}
+				else
+				{
+					DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
+				}
+			}
+			else //nothing special, draw sprite normally
+			{
 				if (playerScreenY < 0)
 				{
 					DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame);
 				}
-				///////////////////////
-				if (hurtCountdown % 2)	//Note: & 1 would be faster than % 2
-				{
-					if (playerScreenY < 0)
-					{
-						DrawSpriteClipped_Red(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame);
-					}
-					else
-					{
-						DrawSprite_Red(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame);
-					}
-				}
-				else if (rapidFireCountdown % 2)	//Note: & 1 would be faster than % 2
-				{
-					if (playerScreenY < 0)
-					{
-						DrawSpriteClipped_White(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame);
-					}
-					else
-					{
-						DrawSprite_White(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame);
-					}
-				}
 				else
 				{
-					if (playerScreenY < 0)
-					{
-						DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame);
-					}
-					else
-					{
-						DrawSprite(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame);
-					}
-				}
-			}
-			else
-			{
-				if (teleportCounter < 5)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 0);
-				}
-				else if (teleportCounter < 10)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
-				}
-				else if (teleportCounter < 15)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
-				}
-				else if (teleportCounter < 20)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
-				}
-				else if (teleportCounter <= 25)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY + Random(2) - Random(2), playerDir, 4);
-				}
-				else if (teleportCounter < 30)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
-				}
-				else if (teleportCounter < 35)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
-				}
-				else if (teleportCounter < 40)
-				{
-					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
-				}
-			}
-			if (superJumpCounter)
-			{
-				SpawnTwink(playerScreenX + Random(7) - 2, playerScreenY + Random(10) + 20);
-				if (!superJump)
-				{
-					superJumpCounter--;
-				}
-			}
-			if (powershotsLeft)
-			{
-				if (tick1)
-				{
-					x = powershotsLeft;
-					if (x > 3)
-						x = 3;
-					for (i=0; i<x; i++)
-					{
-						DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].projectileWidth, playerScreenX+1, (playerScreenY-14)-(14*i), playerDir, spriteinfo[SPR_PLAYER].projectileStart+2);
-					}
-				}
-				tick5--;
-				if (tick5 == 0)
-				{
-					tick5 = 5;
-					tick1 = !tick1;
+					DrawSprite(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame);
 				}
 			}
 		}
 		else
 		{
-			hideCountdown--;
-			if (!hideCountdown)
-				PlaySound(SND_TELEPORT);
+			if (teleportCounter < 5)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 0);
+			}
+			else if (teleportCounter < 10)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
+			}
+			else if (teleportCounter < 15)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
+			}
+			else if (teleportCounter < 20)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
+			}
+			else if (teleportCounter <= 25)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY + Random(2) - Random(2), playerDir, 4);
+			}
+			else if (teleportCounter < 30)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
+			}
+			else if (teleportCounter < 35)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
+			}
+			else if (teleportCounter < 40)
+			{
+				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
+			}
+		}
+		if (superJumpCounter)
+		{
+			SpawnTwink(playerScreenX + Random(7) - 2, playerScreenY + Random(10) + 20);
+			if (!superJump)
+			{
+				superJumpCounter--;
+			}
+		}
+		if (powershotsLeft)
+		{
+			if (tick1)
+			{
+				x = powershotsLeft;
+				if (x > 3)
+					x = 3;
+				for (i=0; i<x; i++)
+				{
+					DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].projectileWidth, playerScreenX+1, (playerScreenY-14)-(14*i), playerDir, spriteinfo[SPR_PLAYER].projectileStart+2);
+				}
+			}
+			tick5--;
+			if (tick5 == 0)
+			{
+				tick5 = 5;
+				tick1 = !tick1;
+			}
 		}
 		if (isNewGame)
 		{
@@ -3579,9 +3479,13 @@ restart:
 			SetDisplayPageAtVBL(!currDisplayPage);
 		}
 		CheckEnemyHitsPlayerShot();
-		if (!teleportCounter) { //don't get hurt while warping (https://pckf.com/viewtopic.php?t=18165)
-			CheckEnemyShotHitsPlayer();
-			CheckEnemyHitsPlayer();
+		if (
+			!teleportCounter && //don't get hurt while warping (https://pckf.com/viewtopic.php?t=18165)
+			!hideCountdown //not invisible (also invincible)
+		) {
+			if (!hurtCountdown)
+				CheckEnemyShotHitsPlayer();
+			CheckEnemyHitsPlayer(); //this one can be checked even when hurtCountdown is non-zero, because bosses ignore it and kill the player instantly
 		}
 		UpdateActorSpawns();
 		UpdateEnemyShots();
