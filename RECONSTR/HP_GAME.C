@@ -2649,7 +2649,11 @@ void CheckTiles(void)
 						SpawnScoreTag(sx, sy, 9);
 					}
 				}
-				//Note: itemtype 6 ("Smart bomb") is not implemented!
+				else if (itemtype == 6) //smart bomb item pickup, not coded originally
+				{
+					KillActiveEnemies(); //same function used by mobile smart bombs
+					SpawnScoreTag(sx, sy, 9); //"SHOOT", close enough
+				}
 				else if (itemtype == 7)
 				{
 					gotKey1 = true;
