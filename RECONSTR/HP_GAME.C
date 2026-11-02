@@ -3329,136 +3329,138 @@ restart:
 				PlaySound(SND_YAHOO);
 			}
 		}
-		if (!teleportCounter)
-		{
-			if (playerFiring)
+		if (hideCountdown < 10000) { //winning/losing sets this to 30000, but it's also used by invisibility potions, which now flash you instead of COMPLETELY hiding you
+			if (!teleportCounter)
 			{
-				if (playerAimingUp && !playerWalking)
+				if (playerFiring)
 				{
-					playerFrame = spriteinfo[SPR_PLAYER].shootStart +1;
+					if (playerAimingUp && !playerWalking)
+					{
+						playerFrame = spriteinfo[SPR_PLAYER].shootStart +1;
+					}
+					else if (!playerWalking)
+					{
+						playerFrame = spriteinfo[SPR_PLAYER].shootStart;
+					}
 				}
-				else if (!playerWalking)
+				if (playerJumping)
 				{
-					playerFrame = spriteinfo[SPR_PLAYER].shootStart;
+					playerFrame = spriteinfo[SPR_PLAYER].jumpStart;
 				}
-			}
-			if (playerJumping)
-			{
-				playerFrame = spriteinfo[SPR_PLAYER].jumpStart;
-			}
-			if (playerJumping && playerJumpIndex > maxJumpIndex)
-			{
-				playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
-			}
-			if (playerFalling)
-			{
-				playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
-			}
-			// draw player sprite:
-			///////////////////////
-			if (hideCountdown & 1) {
-				//draw nothing
-			}
-			else if (
-				(rapidFireCountdown & 1) ||
-				(rapidFireCountdown && hideCountdown) //if you have both white and black potions, alternate between white and invisible
-			)
-			{
-				if (playerScreenY < 0)
+				if (playerJumping && playerJumpIndex > maxJumpIndex)
 				{
-					DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
+					playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
 				}
-				else
+				if (playerFalling)
 				{
-					DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
+					playerFrame = spriteinfo[SPR_PLAYER].jumpEnd;
 				}
-			}
-			else if (
-				(hurtCountdown & 1) ||
-				(hurtCountdown && rapidFireCountdown) //if you're hurt and have a white potion, alternate between white and red
-			)
-			{
-				if (playerScreenY < 0)
-				{
-					DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
+				// draw player sprite:
+				///////////////////////
+				if (hideCountdown & 1) {
+					//draw nothing
 				}
-				else
+				else if (
+					(rapidFireCountdown & 1) ||
+					(rapidFireCountdown && hideCountdown) //if you have both white and black potions, alternate between white and invisible
+					)
 				{
-					DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
+					if (playerScreenY < 0)
+					{
+						DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
+					}
+					else
+					{
+						DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
+					}
 				}
-			}
-			else //nothing special, draw sprite normally
-			{
-				if (playerScreenY < 0)
+				else if (
+					(hurtCountdown & 1) ||
+					(hurtCountdown && rapidFireCountdown) //if you're hurt and have a white potion, alternate between white and red
+					)
 				{
-					DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame);
+					if (playerScreenY < 0)
+					{
+						DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
+					}
+					else
+					{
+						DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
+					}
 				}
-				else
+				else //nothing special, draw sprite normally
 				{
-					DrawSprite(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame);
-				}
-			}
-		}
-		else
-		{
-			if (teleportCounter < 5)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 0);
-			}
-			else if (teleportCounter < 10)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
-			}
-			else if (teleportCounter < 15)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
-			}
-			else if (teleportCounter < 20)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
-			}
-			else if (teleportCounter <= 25)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY + Random(2) - Random(2), playerDir, 4);
-			}
-			else if (teleportCounter < 30)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
-			}
-			else if (teleportCounter < 35)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
-			}
-			else if (teleportCounter < 40)
-			{
-				DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
-			}
-		}
-		if (superJumpCounter)
-		{
-			SpawnTwink(playerScreenX + Random(7) - 2, playerScreenY + Random(10) + 20);
-			if (!superJump)
-			{
-				superJumpCounter--;
-			}
-		}
-		if (powershotsLeft)
-		{
-			if (tick1)
-			{
-				x = powershotsLeft;
-				if (x > 3)
-					x = 3;
-				for (i=0; i<x; i++)
-				{
-					DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].projectileWidth, playerScreenX+1, (playerScreenY-14)-(14*i), playerDir, spriteinfo[SPR_PLAYER].projectileStart+2);
+					if (playerScreenY < 0)
+					{
+						DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame);
+					}
+					else
+					{
+						DrawSprite(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame);
+					}
 				}
 			}
-			tick5--;
-			if (tick5 == 0)
+			else
 			{
-				tick5 = 5;
-				tick1 = !tick1;
+				if (teleportCounter < 5)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 0);
+				}
+				else if (teleportCounter < 10)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
+				}
+				else if (teleportCounter < 15)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
+				}
+				else if (teleportCounter < 20)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
+				}
+				else if (teleportCounter <= 25)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY + Random(2) - Random(2), playerDir, 4);
+				}
+				else if (teleportCounter < 30)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 3);
+				}
+				else if (teleportCounter < 35)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 2);
+				}
+				else if (teleportCounter < 40)
+				{
+					DrawSprite(SPR_MORPH, playerScreenX, playerScreenY, playerDir, 1);
+				}
+			}
+			if (superJumpCounter)
+			{
+				SpawnTwink(playerScreenX + Random(7) - 2, playerScreenY + Random(10) + 20);
+				if (!superJump)
+				{
+					superJumpCounter--;
+				}
+			}
+			if (powershotsLeft)
+			{
+				if (tick1)
+				{
+					x = powershotsLeft;
+					if (x > 3)
+						x = 3;
+					for (i=0; i<x; i++)
+					{
+						DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].projectileWidth, playerScreenX+1, (playerScreenY-14)-(14*i), playerDir, spriteinfo[SPR_PLAYER].projectileStart+2);
+					}
+				}
+				tick5--;
+				if (tick5 == 0)
+				{
+					tick5 = 5;
+					tick1 = !tick1;
+				}
 			}
 		}
 		if (isNewGame)
