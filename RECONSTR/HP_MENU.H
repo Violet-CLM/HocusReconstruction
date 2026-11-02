@@ -121,7 +121,7 @@ Sint8 OptionsMenu(void);
 Sint8 LevelMenu(void);
 Sint8 SkillMenu(void);
 Sint8 GameMenu(void);
-Sint8 GameSpeedMenu(void);
+void GameSpeedMenu(void);
 void Show1Line(char *text);
 Uint16 SaveMenu(void);
 Uint16 RestoreMenu(void);

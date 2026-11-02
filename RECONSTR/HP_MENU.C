@@ -242,15 +242,6 @@ char *controlNames[NUMCONTROLS] =
 	"Scroll down",
 };
 
-Sint16 speedMenuPos = 1;
-char *speedMenuLines[4] =
-{
-	"Select Game Speed",
-	"Slow",
-	"Medium",
-	"Fast"
-};
-
 void *_unusedPtr = MK_FP(0xB800, 0);
 
 Uint16 gradientBaseColors[9] =
@@ -787,17 +778,6 @@ void InitMenu(Uint16 menuNum)
 		menuBottomIndex = 1;
 		menuHasHeadline = 0;
 		newMenuPos = helpMenuPos;
-	}
-	if (menuNum == 7)
-	{
-		for (i=0; i<ARRAY_LENGTH(speedMenuLines); i++)
-		{
-			menuLines[i] = speedMenuLines[i];
-		}
-		menuNumLines = ARRAY_LENGTH(speedMenuLines);
-		menuBottomIndex = 1;
-		menuHasHeadline = 1;
-		newMenuPos = speedMenuPos;
 	}
 }
 
@@ -1512,9 +1492,6 @@ void StoreMenuPos(void)
 	case 5:
 		helpMenuPos = menuPos;
 		break;
-	case 7:
-		speedMenuPos = menuPos;
-		break;
 	}
 }
 
@@ -1682,12 +1659,91 @@ Sint8 GameMenu(void)
 	return HandleMenu(0);
 }
 
-Sint8 GameSpeedMenu(void)
+void GameSpeedMenu(void)
 {
-	speedMenuPos = gamespeed;
-	InitMenu(7);
-	DrawMenu();
-	return HandleMenu(0);
+	register Sint16 i, speedMenuPos = gamespeed;
+	Uint16 drawTick = 0;
+	unsigned char c;
+
+	SetToBlack();
+	SetDrawPage(0);
+	ClearScreen();
+	SetDisplayPage(0);
+
+	DrawText_G((320 - TextWidth("Select Game Speed")) / 2, 92, 5, "Select Game Speed");
+
+	for (i = 0; i < 8; i++)
+	{
+		MenuDrawSlider((i << 2) + 24, 110, 0);
+	}
+
+	MENUFRAME(9);
+	FadeFromBlack(20);
+
+	while (kbhit())
+		getch();
+	for (;;)
+	{
+		c = HandleJoystick();
+		if (c == JOY_RIGHT || c == JOY_UP)
+		{
+			c = KEY_RIGHT;
+			goto check_scancode;
+		}
+		if (c == JOY_LEFT || c == JOY_DOWN)
+		{
+			c = KEY_LEFT;
+			goto check_scancode;
+		}
+		if (c == JOY_BTN1 || c == JOY_BTN2)
+		{
+			c = CHAR_ENTER;
+			goto check_char;
+		}
+		if (kbhit())
+		{
+			c = getch();
+			if (!c)
+			{
+				c = getch();
+			check_scancode:
+				if ((c == KEY_RIGHT || c == KEY_UP) && speedMenuPos < 7)
+				{
+					MenuDrawSlider((speedMenuPos << 2) + 24, 110, 0);
+					speedMenuPos++;
+				}
+				if ((c == KEY_LEFT || c == KEY_DOWN) && speedMenuPos != 0)
+				{
+					MenuDrawSlider((speedMenuPos << 2) + 24, 110, 0);
+					speedMenuPos--;
+				}
+			}
+			else
+			{
+				c = toupper(c);
+			check_char:
+				if (c == CHAR_ESCAPE || c == CHAR_ENTER)
+				{
+					if (c == CHAR_ENTER) {
+						config.gamespeed = gamespeed = speedMenuPos;
+						if (!WriteToFile(configPath, &config, sizeof(config)))
+							Show1Line("I/O Error - HOCUS.SAV");
+					}
+					FadeToBlack(20);
+					break;
+				}
+			}
+		}
+		if (++drawTick == 10)
+		{
+			MenuDrawSlider((speedMenuPos << 2) + 24, 110, 0);
+		}
+		else if (drawTick == 20) {
+			MenuDrawSlider((speedMenuPos << 2) + 24, 110, 1);
+			drawTick = 0;
+		}
+		DrawStarfield();
+	}
 }
 
 void Show1Line(char *text)
@@ -3119,12 +3175,7 @@ options_menu:
 				goto options_menu;
 				
 			case 4:
-				c = GameSpeedMenu();
-				if (c != -1)
-				{
-					gamespeed = c;
-					config.gamespeed = c;
-				}
+				GameSpeedMenu();
 				goto options_menu;
 				
 			case 5:

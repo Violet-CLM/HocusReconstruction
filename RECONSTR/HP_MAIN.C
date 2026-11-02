@@ -46,7 +46,6 @@ TFatEntry FAT[] =
 
 Uint16 zero = 0;	//is set but never used
 Uint16 isRegisteredVersion = !SHAREWARE;
-Sint16 speedTicks[3] = {8, 7, 6};
 
 Uint8 kbSpecialKeys[NUMSPECIALKEYS] =
 {
@@ -653,12 +652,7 @@ options_menu:
 				goto options_menu;
 				
 			case 4:
-				menuResult = GameSpeedMenu();
-				if (menuResult != -1)
-				{
-					gamespeed = menuResult;
-					config.gamespeed = menuResult;
-				}
+				GameSpeedMenu();
 				goto options_menu;
 				
 			case 5:

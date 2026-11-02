@@ -3259,7 +3259,7 @@ restart:
 #endif
 
 		//limit framerate:
-		while (pcTickCount-lastTickCount < speedTicks[gamespeed]);
+		while (pcTickCount-lastTickCount < (8 - gamespeed)); //change, was limited to 8/7/6 originally
 		lastTickCount = pcTickCount;
 		
 		if (config.controlMode && !playingDemo)
