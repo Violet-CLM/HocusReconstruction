@@ -152,7 +152,7 @@ extern Sint16 skill;
 extern Uint8 *mapBackLayer;
 extern Uint8 *mapMainLayer;
 extern Uint8 *mapInsertLayer;
-extern Sint16 *mapInfoLayer;
+extern Uint16 *mapInfoLayer;
 extern Uint8 *mapTriggeredLayer;
 extern Sint32 score;
 extern Sint32 oldscore;

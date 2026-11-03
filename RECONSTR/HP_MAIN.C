@@ -211,7 +211,7 @@ Sint16 skill;
 Uint8 *mapBackLayer;
 Uint8 *mapMainLayer;
 Uint8 *mapInsertLayer;
-Sint16 *mapInfoLayer;
+Uint16 *mapInfoLayer;
 Uint8 *mapTriggeredLayer;
 
 Sint32 score;
@@ -322,11 +322,11 @@ void Startup(Uint8 skipToMenu)
 			AllocBufferW(&pcSounds[i], FAT[soundEntries[i].pc].size, "3");
 		}
 	}
-	AllocBufferB(&mapBackLayer, 14400, "M");
-	AllocBufferB(&mapMainLayer, 14400, "M");
-	AllocBufferB(&mapInsertLayer, 14400, "M");
-	AllocBufferW(&mapInfoLayer, 28800, "M");
-	AllocBufferB(&mapTriggeredLayer, 14400, "M");
+	AllocBufferB(&mapBackLayer, LEVEL_SIZE, "M");
+	AllocBufferB(&mapMainLayer, LEVEL_SIZE, "M");
+	AllocBufferB(&mapInsertLayer, LEVEL_SIZE, "M");
+	AllocBufferW(&mapInfoLayer, LEVEL_SIZE*sizeof(Uint16), "M");
+	AllocBufferB(&mapTriggeredLayer, LEVEL_SIZE, "M");
 	AllocBufferB(&buffer_64000, 64000, "1");
 	AllocBufferB(&musicBuffer, 30000, "2");
 	AllocBufferB(&fontmask, FAT[FONT_MSK].size, "4");

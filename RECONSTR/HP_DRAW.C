@@ -51,7 +51,7 @@ void DrawBackdrop_Even(Uint8 *drawsrc, Uint8 *drawdest)
 	
 	SetWriteMode(1);
 	SetPlaneMask(0xF);
-	tileindex = camY*240 + camX;
+	tileindex = camY*LEVEL_WIDTH + camX;
 	x1 = camX_t8 % 80;
 	destoff = 0;
 	srcoff = x1;
@@ -263,7 +263,7 @@ void DrawBackdrop_Odd(Uint8 *drawsrc, Uint8 *drawdest)
 	
 	SetWriteMode(1);
 	SetPlaneMask(0xF);
-	tileindex = camY*240 + camX;
+	tileindex = camY*LEVEL_WIDTH + camX;
 	x1 = camX_t8 % 80;
 	destoff = 0;
 	srcoff = x1;
@@ -754,7 +754,7 @@ void DrawBackdrop_Even_Slow(void)	//never used!
 	
 	SetWriteMode(1);
 	SetPlaneMask(0xF);
-	tileindex = camY*240 + camX;
+	tileindex = camY*LEVEL_WIDTH + camX;
 	x1 = camX_t8 % 80;
 	destoff = 0;
 	srcoff = x1;
@@ -884,7 +884,7 @@ void DrawBackdrop_Odd_Slow(void)	//never used!
 	
 	SetWriteMode(1);
 	SetPlaneMask(0xF);
-	tileindex = camY*240 + camX;
+	tileindex = camY*LEVEL_WIDTH + camX;
 	x1 = camX_t8 % 80;
 	destoff = 0;
 	srcoff = x1;

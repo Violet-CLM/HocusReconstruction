@@ -72,7 +72,7 @@ Sint16 levelElevatorTiles[4][10][2] =
 
 Sint16 boss4Xs[4] = {128, 128, 113, 128};
 Sint16 boss4Ys[4] = { 54,  48,  42,  36};
-Sint16 boss4TileOffs[4] = {0x3320, 0x2D80, 0x27D1, 0x2240};	//= x + y*240
+Sint16 boss4TileOffs[4] = {0x3320, 0x2D80, 0x27D1, 0x2240};	//= x + y*LEVEL_WIDTH
 Sint16 boss4Dirs[4] = {1, 1, 0, 1};
 Sint16 boss4Health[4] = {600, 400, 200, -1};
 
@@ -366,6 +366,24 @@ void CheckEnemyHitsPlayer(void)
 	}
 }
 
+void RemoveEventUntilRespawnAtSavepoint(Uint16 infoindex, Uint16 replaceBackTile)
+{
+	mapInfoLayer[infoindex] =
+		RESPAWN_ITEM_AFTER_RELOAD_BIT | //highest bit of a 16-bit integer
+		(mapInfoLayer[infoindex] << 8) | //although event IDs technically run from 0 through 0x016D, the highest ID that could ever be saved in this way is 0x73 (an unused enemy ID), which fits in seven bits
+		(replaceBackTile ? mapBackLayer[infoindex] : 0xFF)
+	;
+	if (replaceBackTile)
+		mapBackLayer[infoindex] = tileinfo.backtile;
+}
+
+void KillEnemy(Sint16 i) {
+	PlaySound(SND_EXPLODE);
+	actorType[i] = -1;
+	RemoveEventUntilRespawnAtSavepoint(actorTileindex[i], false);
+	numEnemiesKilled++;
+}
+
 void KillActiveEnemies(void)
 {
 	register Sint16 i;
@@ -380,10 +398,7 @@ void KillActiveEnemies(void)
 			pixX = (baseX + (actorWidth[i]/2)) << 2;
 			pixY = baseY + (actorHeight[i]/2);
 			SpawnParticles(pixX, pixY);
-			PlaySound(SND_EXPLODE);
-			actorType[i] = -1;
-			mapInfoLayer[actorTileindex[i]] = 30000;	//make sure the enemy cannot respawn
-			numEnemiesKilled++;
+			KillEnemy(i);
 		}
 	}
 }
@@ -429,13 +444,10 @@ void CheckEnemyHitsPlayerShot(void)
 						}
 						else
 						{
-							PlaySound(SND_EXPLODE);
 							SpawnParticles(pixX, pixY);
 							SpawnParticles(pixX, pixY);
 							SpawnParticles(pixX, pixY);
-							actorType[i] = -1;
-							mapInfoLayer[actorTileindex[i]] = 30000;	//make sure the enemy cannot respawn
-							numEnemiesKilled++;
+							KillEnemy(i);
 						}
 					}
 				}
@@ -664,7 +676,7 @@ Sint16 SpawnEnemyShot(Sint16 x, Sint16 y, Sint16 adjustDir, Sint16 delay, Sint16
 	enemyshotHeight[i] = spriteinfo[spritenum].projectileHeight+3;
 	enemyshotFrame[i] = spriteinfo[spritenum].projectileStart;
 	enemyshotMaxFrame[i] = spriteinfo[spritenum].projectileEnd;
-	enemyshotState[i] = 30000;
+	enemyshotState[i] = 30000; //the enemyshotState array seems to use only two values, 30000 (active) and -1 (inactive)
 	PlaySound(SND_ENEMYSHOT);
 	enemyshotX[i] = x + deltaX;
 	enemyshotY[i] = y + spriteinfo[spritenum].projectileDeltaY;
@@ -694,7 +706,7 @@ void UpdateEnemyShots(void)
 			{
 				blocked = 1;
 			}
-			if (*(mapMainLayer+(enemyshotY[i]/16)*240 + (enemyshotX[i]/4)) != 255)
+			if (*(mapMainLayer+(enemyshotY[i]/16)*LEVEL_WIDTH + (enemyshotX[i]/4)) != 255)
 			{
 				blocked = 2;
 			}
@@ -1015,7 +1027,7 @@ void UpdateActors(void)
 								actorY[i] += actorVY[i];
 								if (actorJumpSpeed[i] == -99)	//condition is ALWAYS true here
 								{
-									tileindex = ((actorY[i]/16)*240 + actorX[i]/4);
+									tileindex = ((actorY[i]/16)*LEVEL_WIDTH + actorX[i]/4);
 									if (actorDir[i] == 0)
 									{
 										tileindex++;
@@ -1035,14 +1047,14 @@ void UpdateActors(void)
 									
 									for (iy=0; iy<th; iy++)
 									{
-										ti = (actorY[i]/16 + iy)*240 + actorX[i]/4;	//redundant for iy==0
+										ti = (actorY[i]/16 + iy)*LEVEL_WIDTH + actorX[i]/4;	//redundant for iy==0
 										for (ix=0; ix<tw; ix++)
 										{
 											if (mapMainLayer[ti] != 255)
 												blocked = 1;
 											ti++;
 										}
-										// Note: It would be faster to do "ti += 240-tw;" here instead of the re-initialization before the x-loop.
+										// Note: It would be faster to do "ti += LEVEL_WIDTH-tw;" here instead of the re-initialization before the x-loop.
 									}
 								}
 							}
@@ -1129,7 +1141,7 @@ void UpdateActors(void)
 								break;
 								
 							case 0:
-								ti = tileindex + th*240;
+								ti = tileindex + th*LEVEL_WIDTH;
 								if (actorDir[i] == 0)
 								{
 									ti += tw-2;
@@ -1184,7 +1196,7 @@ void UpdateActors(void)
 							case 7:	//never used! -- this is buggy!
 								if (actorJumpSpeed[i] != -99)
 								{
-									ti = tileindex + th*240;
+									ti = tileindex + th*LEVEL_WIDTH;
 									if (!actorDir[i])
 									{
 										ti += tw-2;
@@ -1243,7 +1255,7 @@ void UpdateActors(void)
 								break;
 								
 							case 1:
-								ti = tileindex + 240*th;
+								ti = tileindex + LEVEL_WIDTH*th;
 								if (!actorDir[i])
 								{
 									ti += tw-2;
@@ -1946,7 +1958,7 @@ void UpdateTiles(void)
 	Sint16 x, y, randnum;
 	
 	tileCountdown--;
-	ti = camY*240 + camX;
+	ti = camY*LEVEL_WIDTH + camX;
 	for (y=0; y<10; ti+=219,y++)
 	{
 		for (x=0; x<21; ti++,x++)
@@ -2039,8 +2051,8 @@ void UpdateTiles(void)
 
 void UpdateActorSpawns(void)
 {
-	register Sint16 i, ti;
-	Sint16 infoval, x, y;
+	register Uint16 i, ti;
+	Uint16 infoval, x, y;
 	
 	for (i=0; i<MAX_SPAWNQUEUE; i++)
 	{
@@ -2048,10 +2060,10 @@ void UpdateActorSpawns(void)
 		{
 			ti = spawnTileindex[i];
 			infoval = mapInfoLayer[ti];
-			y = ti / 240;	//Note: calculating x and y AFTER checking if infoval is 30000 would speed this up a little
-			x = ti % 240;
-			if (infoval != 30000)
+			if (infoval < 0x200)
 			{
+				y = ti / LEVEL_WIDTH;
+				x = ti % LEVEL_WIDTH;
 				if (SpawnActor(infoval-106, x<<2, y<<4, ti))
 				{
 					spawnTileindex[i] = -1;
@@ -2339,7 +2351,7 @@ void CountCrystals(void)
 	register Sint16 i;
 	
 	crystalsTotal = 0;
-	for (i=0; i<14400; i++)
+	for (i=0; i<LEVEL_SIZE; i++)
 	{
 		if (mapInfoLayer[i] < 23)
 		{
@@ -2503,6 +2515,10 @@ void ShowWizardText(Sint16 textnum)
 	SetDrawPage(!currDisplayPage);
 }
 
+
+enum keepValues {
+	keep_remove, keep_dont_delete_item, keep_remove_until_respawn_at_savepoint
+};
 void CheckTiles(void)
 {
 	register Sint16 i, num;
@@ -2512,7 +2528,7 @@ void CheckTiles(void)
 	Sint16 n;
 	Sint16 spawn;
 	Sint16 correct;
-	Sint16 infoval;
+	Uint16 infoval;
 	Sint16 itemtype;
 	Sint16 sx, sy;
 	Sint16 keep;
@@ -2532,26 +2548,27 @@ void CheckTiles(void)
 	}
 	for (dx=-1; dx<=1; dx++)
 	{
-		infoindex = playerTileY*240 + (playerX+1)/2 + dx;
+		infoindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2 + dx;
 		sx = playerScreenX-1;
 		sy = playerScreenY-16;
 		wizardActivated = 0;
-		for (dy=0; dy<2; dy++, infoindex+=240, sy+=16)
+		for (dy=0; dy<2; dy++, infoindex+=LEVEL_WIDTH, sy+=16)
 		{
 			infoval = mapInfoLayer[infoindex];
-			keep = 0;
-			if (infoval == 30000)
+			if (infoval >= 0x200) //greater than any legitimate eventID, should be either EMPTY_ITEM or RESPAWN_ITEM_AFTER_RELOAD_BIT
 				continue;
-			if (infoval < 23)	//Note: this would also handle values < 0, but the info layer should not contain any
+			if (infoval < 23)
 			{
+				keep = keep_remove; //default
 				itemtype = iteminfos[infoval].type;
 				if (iteminfos[infoval].heal && playerHealth < 100)
 				{
 					PlaySound(SND_HEAL);
+					keep = keep_remove_until_respawn_at_savepoint;
 				}
 				else if (iteminfos[infoval].heal)
 				{
-					keep = 1;
+					keep = keep_dont_delete_item;
 				}
 				else if (iteminfos[infoval].score)
 				{
@@ -2592,7 +2609,7 @@ void CheckTiles(void)
 				}
 				else if (itemtype == 2)
 				{
-					keep = 1;
+					keep = keep_dont_delete_item;
 					if (!hurtCountdown && !hideCountdown && !dx)
 					{
 						HurtPlayer(20);
@@ -2604,7 +2621,7 @@ void CheckTiles(void)
 					{
 						HurtPlayer(10);
 					}
-					keep = 1;
+					keep = keep_dont_delete_item;
 				}
 				else if (itemtype == 3)
 				{
@@ -2616,6 +2633,7 @@ void CheckTiles(void)
 					hurtCountdown = 0;
 					PlaySound(SND_TELEPORT);
 					SpawnScoreTag(sx, sy, 8);
+					keep = keep_remove_until_respawn_at_savepoint; //might or might not be needed in a level, there's no way to be sure
 				}
 				else if (itemtype == 4)
 				{
@@ -2625,17 +2643,18 @@ void CheckTiles(void)
 						superJumpCounter = 25;
 						PlaySound(SND_YAHOO);
 						SpawnScoreTag(sx, sy, 7);
+						keep = keep_remove_until_respawn_at_savepoint; //unlikely to be needed again--super jump potions are for secrets--but why risk it?
 					}
 					else
 					{
-						keep = 1;
+						keep = keep_dont_delete_item;
 					}
 				}
 				else if (itemtype == 5)
 				{
 					if (dx)
 					{
-						keep = 1;
+						keep = keep_dont_delete_item;
 					}
 					else
 					{
@@ -2647,12 +2666,14 @@ void CheckTiles(void)
 						rapidFireCountdown = 600;
 						PlaySound(SND_YAHOO);
 						SpawnScoreTag(sx, sy, 9);
+						keep = keep_remove_until_respawn_at_savepoint;
 					}
 				}
 				else if (itemtype == 6) //smart bomb item pickup, not coded originally
 				{
 					KillActiveEnemies(); //same function used by mobile smart bombs
 					SpawnScoreTag(sx, sy, 9); //"SHOOT", close enough
+					keep = keep_remove_until_respawn_at_savepoint;
 				}
 				else if (itemtype == 7)
 				{
@@ -2668,7 +2689,7 @@ void CheckTiles(void)
 				}
 				else if (itemtype == 10)
 				{
-					keep = 1;
+					keep = keep_dont_delete_item;
 					if (useKeyDown)
 					{
 						for (sx=0; sx<10; sx++)
@@ -2691,7 +2712,7 @@ void CheckTiles(void)
 				{
 					if (dx)
 					{
-						keep = 1;
+						keep = keep_dont_delete_item;
 					}
 					else
 					{
@@ -2699,19 +2720,32 @@ void CheckTiles(void)
 						PlaySound(SND_YAHOO);
 						tick1 = 1;
 						tick5 = 5;
+						keep = keep_remove_until_respawn_at_savepoint;
 					}
 				}
-				else if (itemtype == 12)
+				else if (itemtype == 12) //savepoint
 				{
-					//this probably sets a respawn-point -- never used in any level (and the game does not respawn the player anyway)
+					if (oldPlayerY >= 0) { //this isn't the first savepoint visited this level
+						for (i = 0; i < LEVEL_SIZE; ++i) //loop through the whole event map and restore any other previously-visited savepoints
+						{
+							if ((mapInfoLayer[i] >> 8) == 0x91) { //the temporarily removed artifact of an old savepoint (0x11 is the item number for a savepoint, and then the highest bit is also set)
+								mapBackLayer[i] = mapInfoLayer[i];			//truncate the 16-bit int into the lower 8 bits
+								mapBackLayer[i + 1] = mapInfoLayer[i + 1];	//
+								mapInfoLayer[i] = 0x11; //savepoint
+								mapInfoLayer[i + 1] = EMPTY_ITEM; //nothing
+								i += 1; //can safely skip the next column
+							}
+						}
+					}
 					oldPlayerX = playerX;
 					oldPlayerY = playerY;
-					keep = 1;
-					mapInfoLayer[infoindex] = 30000;
-					mapBackLayer[infoindex] = tileinfo.backtile;
-					*(mapInfoLayer+infoindex+1) = 30000;
-					*(mapBackLayer+infoindex+1) = tileinfo.backtile;
+					camWarp = true;
+					UpdateCam();
+					camWarp = false;
 					PlaySound(SND_YAHOO);
+					keep = keep_dont_delete_item; //because the next two lines are going to achieve nearly the same thing as keep_remove_until_respawn_at_savepoint, but in a custom way:
+					RemoveEventUntilRespawnAtSavepoint(infoindex, true);
+					RemoveEventUntilRespawnAtSavepoint(infoindex+1, true); //one tile to the right, because the SAVE graphic takes up two tiles
 				}
 				if (iteminfos[infoval].firepower)
 				{
@@ -2732,10 +2766,13 @@ void CheckTiles(void)
 				}
 				score += iteminfos[infoval].score;
 				playerHealth += iteminfos[infoval].heal;
-				if (!keep)
+				if (keep == keep_remove)
 				{
-					mapInfoLayer[infoindex] = 30000;
+					mapInfoLayer[infoindex] = EMPTY_ITEM;
 					mapBackLayer[infoindex] = tileinfo.backtile;
+				}
+				else if (keep == keep_remove_until_respawn_at_savepoint) {
+					RemoveEventUntilRespawnAtSavepoint(infoindex, true); //same effect except in the 0.000000001% of levels with savepoints
 				}
 			}
 			else if (infoval < 33)
@@ -2749,7 +2786,7 @@ void CheckTiles(void)
 					playerFrame = spriteinfo[SPR_PLAYER].standFrame;
 					playerJumping = 0;
 					playerY = (playerY / 16) << 4;
-					mapInfoLayer[infoindex] = 30000;
+					mapInfoLayer[infoindex] = EMPTY_ITEM;
 					mapBackLayer[infoindex] = tileinfo.backtile;
 					PlaySound(SND_TELEPORT);
 					SpawnScoreTag(sx, sy, 6);
@@ -2806,16 +2843,16 @@ void CheckTiles(void)
 									switchtype = switches[num].type;
 									if (switchtype == 0)
 									{
-										if (*(mapMainLayer + ty*240 + tx) != 255)
+										if (*(mapMainLayer + ty*LEVEL_WIDTH + tx) != 255)
 										{
-											*(mapTriggeredLayer + ty*240 + tx) = 1;
+											*(mapTriggeredLayer + ty*LEVEL_WIDTH + tx) = 1;
 										}
 									}
 									else
 									{
-										if (*(mapInsertLayer + ty*240 + tx) != 255)
+										if (*(mapInsertLayer + ty*LEVEL_WIDTH + tx) != 255)
 										{
-											*(mapTriggeredLayer + ty*240 + tx) = 2;
+											*(mapTriggeredLayer + ty*LEVEL_WIDTH + tx) = 2;
 										}
 									}
 								}
@@ -2861,13 +2898,13 @@ void CheckTiles(void)
 					{
 						for (tx=inserts[num].left; tx<=inserts[num].right; tx++)
 						{
-							if (*(mapInsertLayer + ty*240 + tx) != 255)
+							if (*(mapInsertLayer + ty*LEVEL_WIDTH + tx) != 255)
 							{
-								*(mapTriggeredLayer + ty*240 + tx) = 2;
+								*(mapTriggeredLayer + ty*LEVEL_WIDTH + tx) = 2;
 							}
 						}
 					}
-					mapInfoLayer[infoindex] = 30000;
+					mapInfoLayer[infoindex] = EMPTY_ITEM;
 					if (inserts[num].requiredKey == 0)	//"if (i == 1)" would be faster
 					{
 						mapBackLayer[infoindex] = inserts[num].replaceTile;
@@ -2878,7 +2915,7 @@ void CheckTiles(void)
 					}
 					if (i > 1)
 					{
-						SpawnTwink(((infoindex % 240)-camX)<<2, ((infoindex / 240)-camY)<<4);
+						SpawnTwink(((infoindex % LEVEL_WIDTH)-camX)<<2, ((infoindex / LEVEL_WIDTH)-camY)<<4);
 					}
 				}
 				if (i == 2)
@@ -2915,13 +2952,13 @@ void CheckTiles(void)
 					{
 						for (tx=keyholes[num].left; tx<=keyholes[num].right; tx++)
 						{
-							if (*(mapMainLayer + ty*240 + tx) != 255)
+							if (*(mapMainLayer + ty*LEVEL_WIDTH + tx) != 255)
 							{
-								*(mapTriggeredLayer + ty*240 + tx) = 1;
+								*(mapTriggeredLayer + ty*LEVEL_WIDTH + tx) = 1;
 							}
 						}
 					}
-					mapInfoLayer[infoindex] = 30000;
+					mapInfoLayer[infoindex] = EMPTY_ITEM;
 					if (keyholes[num].requiredKey == 0)	//"if (i == 1)" would be faster
 					{
 						mapBackLayer[infoindex] = keyholes[num].replaceTile;
@@ -2932,7 +2969,7 @@ void CheckTiles(void)
 					}
 					if (i > 1)
 					{
-						SpawnTwink(((infoindex % 240)-camX)<<2, ((infoindex / 240)-camY)<<4);
+						SpawnTwink(((infoindex % LEVEL_WIDTH)-camX)<<2, ((infoindex / LEVEL_WIDTH)-camY)<<4);
 					}
 				}
 				if (i == 2)
@@ -2951,7 +2988,7 @@ void CheckTiles(void)
 				for (i=0; i<8; i++)
 				{
 					offset = enemytriggers[num].offsets[i];
-					if (mapInfoLayer[offset] != 30000)
+					if (mapInfoLayer[offset] != EMPTY_ITEM)
 					{
 						for (spawnindex=0; spawnindex<MAX_SPAWNQUEUE; spawnindex++)
 						{
@@ -3086,10 +3123,6 @@ restart:
 	}
 	OpenDatFile();
 	ReadDatChunk(E1L1_000 + levelNumbers[episode][level], &coordinates);
-	playerX = coordinates.playerX << 1;
-	playerY = coordinates.playerY << 4;
-	oldPlayerX = playerX;
-	oldPlayerY = playerY;
 	ReadDatChunk(E1L1_001 + levelNumbers[episode][level], &tileinfo);
 	ReadDatChunk(E1L1_002 + levelNumbers[episode][level], &messages);
 	ReadDatChunk(E1L1_003 + levelNumbers[episode][level], &teleporters);
@@ -3102,10 +3135,10 @@ restart:
 	ReadDatChunk(E1L1_010 + levelNumbers[episode][level], mapMainLayer);
 	ReadDatChunk(E1L1_011 + levelNumbers[episode][level], mapInsertLayer);
 	ReadDatChunk(E1L1_012 + levelNumbers[episode][level], mapInfoLayer);
-	setmem(mapTriggeredLayer, 14400, 0);
+	setmem(mapTriggeredLayer, LEVEL_SIZE, 0);
 	CloseDatFile();
 	treasureTotal=treasureFound=0;
-	for (i=0; i<14400; i++)
+	for (i=0; i<LEVEL_SIZE; i++)
 	{
 		x = mapInfoLayer[i];
 		if (x >= 0 && x <= 22 && iteminfos[x].score)
@@ -3117,7 +3150,7 @@ restart:
 	///////////////////////////////////////////
 	// useless code: (variables are never read)
 	numEnemiesTotal=numEnemiesKilled=0;
-	for (i=0; i<14400; i++)
+	for (i=0; i<LEVEL_SIZE; i++)
 	{
 		x = mapInfoLayer[i];
 		if (x >= 106 && x <= 115 && enemyinfos[x-106].health != -1)
@@ -3200,6 +3233,7 @@ restart:
 	playerHealth = 100;
 	playerX = coordinates.playerX << 1;
 	playerY = coordinates.playerY << 4;
+	oldPlayerY = -1; //this serves as a check for whether the player has touched a savepoint (at which point oldPlayerY is set to 0 or above)
 	playerFrame = spriteinfo[SPR_PLAYER].standFrame;
 	playerDir = 0;
 	playerJumping = 0;
@@ -3285,13 +3319,13 @@ restart:
 		{
 			if (oddCamX)
 			{
-				DrawLevel_Odd(drawPtr, screenpagePtr[2], mapMainLayer, mapBackLayer, camY*240 + camX);
+				DrawLevel_Odd(drawPtr, screenpagePtr[2], mapMainLayer, mapBackLayer, camY*LEVEL_WIDTH + camX);
 				screenpagePtr[3] += 2000;
 				DrawBackdrop_Odd(screenpagePtr[3], drawPtr);
 			}
 			else
 			{
-				DrawLevel_Even(drawPtr, screenpagePtr[2], mapMainLayer, mapBackLayer, camY*240 + camX);
+				DrawLevel_Even(drawPtr, screenpagePtr[2], mapMainLayer, mapBackLayer, camY*LEVEL_WIDTH + camX);
 				screenpagePtr[3] += 2000;
 				DrawBackdrop_Even(screenpagePtr[3], drawPtr);
 			}
@@ -3726,7 +3760,7 @@ restart:
 			{
 				if (!shotDir[i])
 				{
-					tileindex = (shotY[i]/16 + camY)*240 + shotX[i]/4 + camX + 1;
+					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX + 1;
 					if (*(mapMainLayer+tileindex) == tileinfo.shootableTile)
 					{
 						*(mapMainLayer+tileindex) = 255;
@@ -3734,9 +3768,9 @@ restart:
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex+240) == tileinfo.shootableTile)
+					else if (*(mapMainLayer+tileindex+LEVEL_WIDTH) == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex+240) = 255;
+						*(mapMainLayer+tileindex+LEVEL_WIDTH) = 255;
 						SpawnTwink(shotX[i]+2-(oddCamX<<1), shotY[i]+8);
 						shotX[i] = -99;
 						playerShotsActive--;
@@ -3795,7 +3829,7 @@ restart:
 				}
 				else	//shot is flying left!
 				{
-					tileindex = (shotY[i]/16 + camY)*240 + shotX[i]/4 + camX + 1;
+					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX + 1;
 					if (*(mapMainLayer+tileindex) == tileinfo.shootableTile)
 					{
 						*(mapMainLayer+tileindex) = 255;
@@ -3803,9 +3837,9 @@ restart:
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex+240) == tileinfo.shootableTile)
+					else if (*(mapMainLayer+tileindex+LEVEL_WIDTH) == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex+240) = 255;
+						*(mapMainLayer+tileindex+LEVEL_WIDTH) = 255;
 						SpawnTwink(shotX[i]-2-(oddCamX<<1)+2, shotY[i]+8);
 						shotX[i] = -99;
 						playerShotsActive--;
@@ -3867,16 +3901,16 @@ restart:
 			{
 				if (shotDir[i] == 0)
 				{
-					tileindex = (shotY[i]/16 + camY)*240 + shotX[i]/4 + camX;
+					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX;
 				}
 				else
 				{
-					tileindex = (shotY[i]/16 + camY)*240 + shotX[i]/4 + camX + 1;
+					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX + 1;
 				}
-				tileindex -= 240;
+				tileindex -= LEVEL_WIDTH;
 				if (tileindex < 0)
 				{
-					tileindex += 240;
+					tileindex += LEVEL_WIDTH;
 				}
 				if (*(mapMainLayer+tileindex-playerDir) == tileinfo.shootableTile)
 				{
@@ -3966,7 +4000,7 @@ restart:
 				{
 					playerY += jumpDeltaYs[playerJumpIndex];
 					playerTileY = playerY/16;
-					tileindex = playerTileY*240 + (playerX+1)/2;
+					tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2;
 					if (mapMainLayer[tileindex] != 255)
 					{
 						playerJumpIndex = (maxDeltaYIndex-1)-playerJumpIndex;
@@ -3986,7 +4020,7 @@ restart:
 					jumpEnded = 1;
 				}
 			}
-			tileindex = playerTileY*240 + (playerX+1)/2 + 480;
+			tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2 + 480;
 			if (mapMainLayer[tileindex] != 255)
 			{
 				if (playerJumping && playerJumpIndex >= maxJumpIndex)
@@ -4005,7 +4039,7 @@ restart:
 			else if (!playerJumping && !playerDeathCountdown && !levelDoneCountdown)
 			{
 				playerY += 16;
-				if (*(mapMainLayer+tileindex+240) == 255)
+				if (*(mapMainLayer+tileindex+LEVEL_WIDTH) == 255)
 				{
 					playerFalling = 1;
 					wasFalling = true;
@@ -4017,24 +4051,24 @@ restart:
 			}
 			//handle East/West movement:
 			playerCanMoveW = playerCanMoveE = playerCanMoveNW = playerCanMoveNE = 0;
-			tileindex = playerTileY*240 + (playerX/2);
+			tileindex = playerTileY*LEVEL_WIDTH + (playerX/2);
 			i = playerY % 16;
 			if (!i)
 			{
-				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)==255)
+				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)==255)
 				{
 					playerCanMoveW = 1;
 				}
-				if (*(mapMainLayer+tileindex-240)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)!=255)
+				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
 				{
 					playerCanMoveNW = 1;
 				}
-				tileindex = playerTileY*240 + (playerX+2)/2;
-				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)==255)
+				tileindex = playerTileY*LEVEL_WIDTH + (playerX+2)/2;
+				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)==255)
 				{
 					playerCanMoveE = 1;
 				}
-				if (*(mapMainLayer+tileindex-240)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)!=255)
+				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
 				{
 					playerCanMoveNE = 1;
 				}
@@ -4045,16 +4079,16 @@ restart:
 				{
 					playerCanMoveW = 1;
 				}
-				if (*(mapMainLayer+tileindex-240)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)!=255)
+				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
 				{
 					playerCanMoveNW = 1;
 				}
-				tileindex = playerTileY*240 + (playerX+2)/2;
+				tileindex = playerTileY*LEVEL_WIDTH + (playerX+2)/2;
 				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)==255 && *(mapMainLayer+tileindex+480)==255)
 				{
 					playerCanMoveE = 1;
 				}
-				if (*(mapMainLayer+tileindex-240)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)!=255)
+				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
 				{
 					playerCanMoveNE = 1;
 				}
@@ -4124,7 +4158,7 @@ restart:
 			if (!wizardActivated && elevatorTile1 != -1)
 			{
 				i = 0;	//not used in this branch
-				tileindex = playerTileY*240 + (playerX+1)/2 + 480;
+				tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2 + 480;
 				if (*(mapMainLayer+tileindex) == elevatorTile1 || *(mapMainLayer+tileindex) == elevatorTile2)
 				{
 					if (*(mapMainLayer+tileindex) == elevatorTile2)
@@ -4143,8 +4177,8 @@ restart:
 						if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+1)==255)
 						{
 							playerY -= 16;
-							tileindex += 720;
-							helpindex = tileindex-240;
+							tileindex += LEVEL_WIDTH*3;
+							helpindex = tileindex-LEVEL_WIDTH;
 							*(mapMainLayer+helpindex) = *(mapMainLayer+tileindex);
 							*(mapMainLayer+tileindex) = 255;
 							*(mapMainLayer+helpindex+1) = *(mapMainLayer+tileindex+1);
@@ -4155,11 +4189,11 @@ restart:
 					else if (downKeyDown)
 					{
 						//BUG? this doesn't write anything to the demo data
-						tileindex += 240;
+						tileindex += LEVEL_WIDTH;
 						if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+1)==255)
 						{
 							playerY += 16;
-							helpindex = tileindex-240;
+							helpindex = tileindex-LEVEL_WIDTH;
 							*(mapMainLayer+tileindex) = *(mapMainLayer+helpindex);
 							*(mapMainLayer+helpindex) = 255;
 							*(mapMainLayer+tileindex+1) = *(mapMainLayer+helpindex+1);
@@ -4388,7 +4422,25 @@ restart:
 		// misc stuff:
 		if (playerDeathCountdown == 1)
 		{
-			levelEnded = end_ended;
+			if (oldPlayerY < 0) { //normal death
+				levelEnded = end_ended;
+			} else { //player had visited a savepoint before dying
+				playerX = oldPlayerX;
+				playerY = oldPlayerY;
+				playerDeathCountdown = 0;
+				hideCountdown = 60; //blink for a bit, I guess
+				playerHealth = 100;
+				for (i = 0; i < LEVEL_SIZE; i++)
+				{
+					x = mapInfoLayer[i];
+					if (x & RESPAWN_ITEM_AFTER_RELOAD_BIT) { //an event that was only temporarily removed from the level
+						y = x & 0xFF; //the tileID for mapBackLayer
+						if (y != 0xFF) //if it was 0xFF, this was probably an enemy, which doesn't replace the back tile
+							mapBackLayer[i] = y;
+						mapInfoLayer[i] = (x >> 8) & 0x7F; //these seven bits stored the removed eventID
+					}
+				}
+			}
 		}
 		if (levelDoneCountdown == 1) //natural end of the countdown
 		{

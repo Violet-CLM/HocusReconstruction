@@ -73,6 +73,13 @@ enum {
 #define CHAR_ENTER 13
 #define CHAR_ESCAPE 27
 
+#define LEVEL_WIDTH 240
+#define LEVEL_HEIGHT 60
+#define LEVEL_SIZE (LEVEL_WIDTH * LEVEL_HEIGHT)
+
+#define EMPTY_ITEM 30000
+#define RESPAWN_ITEM_AFTER_RELOAD_BIT 0x8000
+
 //////////////////////////////////////////////
 // SHARED STUFF (used by Game and Setup tool)
 //////////////////////////////////////////////

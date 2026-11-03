@@ -9,4 +9,4 @@ make
 cd OBJ
 copy HOCPOC.EXE ..\..\HOCUS.EXE
 cd ..\..\
-HOCUS
+HOCUS -MENU
