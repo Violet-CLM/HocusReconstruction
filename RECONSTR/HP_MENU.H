@@ -152,4 +152,6 @@ Sint16 IngameMenu(void);
 Uint16 IntermissionScreen(Sint16 won, Sint16 total, Sint16 found);
 void WarpScreen(void);
 
+extern Uint8 showRecordDemoOption;
+
 #endif

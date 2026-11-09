@@ -467,6 +467,8 @@ Check for command line options! The original game did not use them.
 	while (++i < argc) {
 		if (!strcmpi(argv[i], "-MENU"))
 			skipToMenu = true;
+		else if (!strcmpi(argv[i], "-RECORD"))
+			showRecordDemoOption = true;
 	}
 
 	noAudio = notUsed = 0;
@@ -497,30 +499,6 @@ Check for command line options! The original game did not use them.
 			playerFirepower = 1;
 			GameLoop(DEMO_PLAY, false);
 			break;
-			
-#if 0
-		///////////////
-		//HACK:
-		case 8:	// Warp to a level
-			if ((episode=EpisodeMenu())!=-1 && (level=LevelMenu())!=-1 && (skill=SkillMenu())!=-1)
-			{
-				score=0;
-				goto play_loop;
-			}
-			break;
-			
-		case 9:	// Remo Recorder
-			if ((level=LevelMenu())!=-1)
-			{
-				episode=0;
-				score=0;
-				skill=1;
-				GameLoop(DEMO_RECORD, false);
-			}
-			break;
-		// end of hack
-		///////////////
-#endif
 
 		case 0:	// Begin a new game
 			menuResult = EpisodeMenu();
@@ -686,16 +664,36 @@ options_menu:
 			Ordering();
 			break;
 			
+		case 7:
 #if SHAREWARE
-		case 7:	// Preview future levels
-			ShowPreviews();
+			ShowPreviews();	// Preview future levels
+#else
+			// Warp to a level (new)
+			if ((episode = EpisodeMenu()) != -1 && (level = LevelMenu()) != -1 && (skill = SkillMenu()) != -1)
+			{
+				score = 0;
+				goto play_loop;
+			}
+			else //changed your mind
+			{
+				extern Sint16 levelMenuPos;
+				levelMenuPos = 0;
+			}
+#endif
 			break;
 		
 		case 8:	// Quit - return to DOS
-#else
-		case 7:	// Quit - return to DOS
-#endif
 			quit = true;
+			break;
+
+		case 9:	// Demo Recorder (new) (only if the -RECORD command line option is used)
+			if ((level = LevelMenu()) != -1)
+			{
+				episode = 0;
+				score = 0;
+				skill = 1;
+				GameLoop(DEMO_RECORD, false);
+			}
 			break;
 			
 		}	// end of "switch (menuResult)" for MainMenu

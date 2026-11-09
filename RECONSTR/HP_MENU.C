@@ -126,16 +126,11 @@ char *mainMenuLines[] =
 	"High scores",
 #if SHAREWARE
 	"Preview future levels~",
+#else
+	"Warp to a level~", //new
 #endif
-	"Quit - return to DOS"
-#if 0
-	///////////////
-	//HACK:
-	"~","Warp to a level"
-	,"Demo Recorder"
-	// end of hack (code to handle these options must be enabled in 'main')
-	///////////////
-#endif
+	"Quit - return to DOS~",
+	"Demo Recorder"//new
 };
 
 Sint16 episodeMenuPos = 0;
@@ -212,10 +207,6 @@ char *skillMenuLines[] =
 	"Easy game - good for beginners",
 	"Moderate - a resonable challenge",
 	"Hard - the ultimate battle!"
-#if 0
-//HACK:
-	"~","GODMODE"	// works without any extra code (last entry in 'damage' array is 0)
-#endif
 };
 
 Sint16 helpMenuPos = 0;
@@ -276,6 +267,8 @@ char *menuLines[10];
 Sint16 menuNumLines;
 Sint16 menuBottomIndex;
 Sint16 menuHasHeadline;
+
+Uint8 showRecordDemoOption;
 
 Uint16 *textscreenPtr;
 
@@ -614,15 +607,8 @@ Sint16 TextWidth(char *text)
 
 void DrawMenuItem(Sint16 x, Sint16 y, Uint16 color1, Uint16 color2, char *text)
 {
-#if 0
-	//optimized version:
 	char buf[2];
 	buf[0] = text[0];
-#else
-	//original code:
-	char buf[82];
-	strcpy(buf, text);	//only the first char is used, so why copy the entire string?
-#endif
 	buf[1] = 0;
 	DrawText_G(x, y, color2, text);
 	DrawText_G(x, y, color1, buf);
@@ -695,11 +681,14 @@ void InitMenu(Uint16 menuNum)
 	menuNumber = menuNum;
 	if (menuNum == 0)
 	{
-		for (i=0; i<ARRAY_LENGTH(mainMenuLines); i++)
+		menuNumLines = ARRAY_LENGTH(mainMenuLines);
+		if (!showRecordDemoOption) //didn't use the -RECORD command line option
+			menuNumLines -= 1; //skip the final menu option
+
+		for (i=0; i < menuNumLines; i++)
 		{
 			menuLines[i] = mainMenuLines[i];
 		}
-		menuNumLines = ARRAY_LENGTH(mainMenuLines);
 		menuBottomIndex = 0;
 		menuHasHeadline = 0;
 		newMenuPos = mainMenuPos;
