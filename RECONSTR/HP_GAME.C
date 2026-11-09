@@ -561,12 +561,13 @@ Sint16 SpawnActor(Sint16 num, Sint16 x, Sint16 y, Sint16 tileindex)
 	}
 	switch (actorType[i])
 	{
-	case 8:	//boss 3 (dragon)
+	case ENEMY_DRAGON:	//boss 3 (dragon)
 		actorVX[i] = x;
 		actorMoveCountdown[i] = Random(10)+10;
 		break;
 		
-	case 2:	//cases 2 and 3 are identical!
+	case ENEMY_FLYER:	//cases 2 and 3 are identical!
+	case ENEMY_SEEKER:
 		do {
 			actorVX[i] = Random(2) - Random(2);	//result is -1, 0 or 1
 			actorVY[i] = (Random(2) - Random(2)) << 2;	//result is -4, 0 or 4
@@ -574,15 +575,7 @@ Sint16 SpawnActor(Sint16 num, Sint16 x, Sint16 y, Sint16 tileindex)
 		actorNewDirCountdown[i] = Random(20);
 		break;
 		
-	case 3:
-		do {
-			actorVX[i] = Random(2) - Random(2);	//result is -1, 0 or 1
-			actorVY[i] = (Random(2) - Random(2)) << 2;	//result is -4, 0 or 4
-		} while (actorVX[i]==0 && actorVY[i]==0);
-		actorNewDirCountdown[i] = Random(20);
-		break;
-		
-	case 6:
+	case ENEMY_FASTSEEKER:
 		do {
 			actorVX[i] = Random(2) - Random(2);	//result is -1, 0 or 1
 			actorVY[i] = (Random(2) - Random(2)) << 2;	//result is -4, 0 or 4
@@ -590,7 +583,8 @@ Sint16 SpawnActor(Sint16 num, Sint16 x, Sint16 y, Sint16 tileindex)
 		actorNewDirCountdown[i] = Random(20);
 		break;
 		
-	case 0:	//cases 0, 7 and 1 are identical!
+	case ENEMY_WALKER:	//cases 0 and 1 are identical!
+	case ENEMY_CHARGER:
 		if (actorDir[i]==0)
 		{
 			actorVX[i] = 1;
@@ -602,31 +596,12 @@ Sint16 SpawnActor(Sint16 num, Sint16 x, Sint16 y, Sint16 tileindex)
 		actorVY[i] = 0;
 		break;
 		
-	case 7:
-		if (actorDir[i]==0)
-		{
-			actorVX[i] = 1;
-		}
-		else
-		{
-			actorVX[i] = -1;
-		}
+	case ENEMY_JUMPER: //unused
+		actorVX[i] = 0;
 		actorVY[i] = 0;
 		break;
 		
-	case 1:
-		if (actorDir[i]==0)
-		{
-			actorVX[i] = 1;
-		}
-		else
-		{
-			actorVX[i] = -1;
-		}
-		actorVY[i] = 0;
-		break;
-		
-	case 4:	//boss 1 (mad monk)
+	case ENEMY_MONK:	//boss 1 (mad monk)
 		actorVX[i] = 0;
 		actorVY[i] = 0;
 		actorDir[i] = 0;
@@ -634,7 +609,7 @@ Sint16 SpawnActor(Sint16 num, Sint16 x, Sint16 y, Sint16 tileindex)
 		PlaySound(SND_LAUGH);
 		break;
 		
-	case 5:	//flower flinger
+	case ENEMY_STAND:	//flower flinger
 		actorVX[i] = 0;
 		actorVY[i] = 0;
 		actorFrame[i] = 0;
@@ -988,11 +963,11 @@ void UpdateActors(void)
 	{
 		if (actorType[i] != -1)
 		{
-			if (actorType[i] == 8)
+			if (actorType[i] == ENEMY_DRAGON)
 			{
 				UpdateBoss3(i);
 			}
-			else if (actorType[i] == 99)
+			else if (actorType[i] == ENEMY_TROLODON)
 			{
 				UpdateBoss4();
 			}
@@ -1011,57 +986,44 @@ void UpdateActors(void)
 						{
 							oldX = actorX[i];
 							oldY = actorY[i];
-							if (actorJumpSpeed[i] != -99)
-							{
-								actorY[i] += actorJumpSpeed[i];
-								actorJumpSpeed[i]++;
-								if (actorJumpSpeed[i] == 7)
-								{
-									actorJumpSpeed[i] = -99;
-									actorFrame[i] = 0;
-								}
-							}
-							else
+							if (actorJumpSpeed[i] == -99) //not the jumper jumping
 							{
 								actorX[i] += actorVX[i];
 								actorY[i] += actorVY[i];
-								if (actorJumpSpeed[i] == -99)	//condition is ALWAYS true here
+								tileindex = ((actorY[i]/16)*LEVEL_WIDTH + actorX[i]/4);
+								if (actorDir[i] == 0)
 								{
-									tileindex = ((actorY[i]/16)*LEVEL_WIDTH + actorX[i]/4);
-									if (actorDir[i] == 0)
-									{
-										tileindex++;
-									}
-									ti = tileindex;
-									tw = actorWidth[i]/4;
-									if (actorX[i] % 4)
-									{
-										tw++;
-									}
-									th = actorHeight[i]/16;
-									if (actorY[i] % 16)
-									{
-										th++;
-									}
-									blocked = 0;
+									tileindex++;
+								}
+								ti = tileindex;
+								tw = actorWidth[i]/4;
+								if (actorX[i] % 4)
+								{
+									tw++;
+								}
+								th = actorHeight[i]/16;
+								if (actorY[i] % 16)
+								{
+									th++;
+								}
+								blocked = 0;
 									
-									for (iy=0; iy<th; iy++)
+								for (iy=0; iy<th; iy++)
+								{
+									ti = (actorY[i]/16 + iy)*LEVEL_WIDTH + actorX[i]/4;	//redundant for iy==0
+									for (ix=0; ix<tw; ix++)
 									{
-										ti = (actorY[i]/16 + iy)*LEVEL_WIDTH + actorX[i]/4;	//redundant for iy==0
-										for (ix=0; ix<tw; ix++)
-										{
-											if (mapMainLayer[ti] != 255)
-												blocked = 1;
-											ti++;
-										}
-										// Note: It would be faster to do "ti += LEVEL_WIDTH-tw;" here instead of the re-initialization before the x-loop.
+										if (mapMainLayer[ti] != 255)
+											blocked = 1;
+										ti++;
 									}
+									// Note: It would be faster to do "ti += LEVEL_WIDTH-tw;" here instead of the re-initialization before the x-loop.
 								}
 							}
 							
 							switch (actorType[i])
 							{
-							case 2:
+							case ENEMY_FLYER:
 								if (actorNewDirCountdown[i] <= 0)
 								{
 									blocked = 1;
@@ -1086,7 +1048,7 @@ void UpdateActors(void)
 								actorNewDirCountdown[i]--;
 								break;
 								
-							case 3:
+							case ENEMY_SEEKER:
 								if (actorNewDirCountdown[i] <= 0)
 								{
 									blocked = 1;
@@ -1113,7 +1075,7 @@ void UpdateActors(void)
 								actorNewDirCountdown[i]--;
 								break;
 								
-							case 6:
+							case ENEMY_FASTSEEKER:
 								if (actorNewDirCountdown[i] <= 0)
 								{
 									blocked = 1;
@@ -1140,7 +1102,7 @@ void UpdateActors(void)
 								actorNewDirCountdown[i]--;
 								break;
 								
-							case 0:
+							case ENEMY_WALKER:
 								ti = tileindex + th*LEVEL_WIDTH;
 								if (actorDir[i] == 0)
 								{
@@ -1193,68 +1155,53 @@ void UpdateActors(void)
 								}
 								break;
 								
-							case 7:	//never used! -- this is buggy!
-								if (actorJumpSpeed[i] != -99)
+							case ENEMY_JUMPER:	//never used
+								if (actorJumpSpeed[i] != -99) //jumping
 								{
-									ti = tileindex + th*LEVEL_WIDTH;
-									if (!actorDir[i])
-									{
-										ti += tw-2;
+									actorY[i] += actorJumpSpeed[i];
+									actorJumpSpeed[i]++;
+									if (actorJumpSpeed[i] == 0) { //apex of jump
+										if (spriteinfo[spritenum].jumpEnd != -1) //this enemy has a defined jumpEnd
+											actorFrame[i] = spriteinfo[spritenum].jumpEnd;
 									}
-									if (mapMainLayer[ti] == 255)
+									else if (actorJumpSpeed[i] == 10) //done jumping
 									{
-										blocked = 1;
+										actorJumpSpeed[i] = -99; //back to standing
+										actorFrame[i] = 0; //should be a safe default
 									}
-									if (blocked)
-									{
-										actorX[i] = oldX;
-										actorY[i] = oldY;
-										actorDir[i] = !actorDir[i];
-										if (!actorDir[i])
-										{
-											actorVX[i] = 1;
-										}
-										else
-										{
-											actorVX[i] = -1;
-										}
-									}
-									if (!Random(20))
-									{
-										if (actorX[i] > playerX_pix)
-										{
-											actorDir[i] = 1;
-										}
-										else
-										{
-											actorDir[i] = 0;
-										}
-										if (!actorDir[i])
-										{
-											actorVX[i] = 1;
-										}
-										else
-										{
-											actorVX[i] = -1;
-										}
-									}
+									break; //leave switch statement
 								}
-								else
+								else if (playerShotsActive) //standing, but check for nearby bullets that might inspire this enemy to jump
 								{
-									for (i=0; i<MAX_SHOTS; i++)	//BUG: index variable i used for shots AND actor!
+									ix = actorX[i] - (camX_t8 << 1) + (actorWidth[i] / 2); //actorX is measured in level coordinates, but shotX is measured in screen coordinates, so we need to convert between the two
+									for (iy=0; iy<MAX_SHOTS; ++iy)
 									{
-										if (shotX[i] != -99)
+										if (shotX[iy] != -99) //an active player shot
 										{
-											if (abs(shotX[i]-actorX[i] < 10))	//BUG: abs() is used on a boolean value (0 or 1)!
+											if (!shotDir[iy] == (shotX[iy] < ix)) //this player shot is approaching the enemy. (The original code used an abs test for ix vs. shotX here, but shots move so very fast that the enemy really needs to jump as soon as the shot exists
 											{
-												actorJumpSpeed[i] = -6;
+												actorJumpSpeed[i] = -8;
+												actorY[i] -= 9; //start the jump right away, more likely to dodge the shot this way
+												if (spriteinfo[spritenum].jumpStart != -1) //this enemy has a defined jumpStart
+													actorFrame[i] = spriteinfo[spritenum].jumpStart;
+												break; //leave for loop
 											}
 										}
 									}
 								}
+								//fall through! jumpers should probably ALSO face the player, at least while standing
+							case ENEMY_STAND:
+								if (actorX[i] > playerX_pix)
+								{
+									actorDir[i] = 1;
+								}
+								else
+								{
+									actorDir[i] = 0;
+								}
 								break;
 								
-							case 1:
+							case ENEMY_CHARGER:
 								ti = tileindex + LEVEL_WIDTH*th;
 								if (!actorDir[i])
 								{
@@ -1309,18 +1256,7 @@ void UpdateActors(void)
 								}
 								break;
 								
-							case 5:
-								if (actorX[i] > playerX_pix)
-								{
-									actorDir[i] = 1;
-								}
-								else
-								{
-									actorDir[i] = 0;
-								}
-								break;
-								
-								//Note: case 4 has no code here
+								//Note: case 4 (ENEMY_MONK) has no code here
 								
 							}	/* end of 'switch (actorType[i])' */
 							
@@ -1423,11 +1359,6 @@ void UpdateActors(void)
 						{
 							actorFrame[i] = spriteinfo[spritenum].shootStart;
 						}
-					}
-					//1E13:
-					if (actorJumpSpeed[i] != -99)
-					{
-						actorFrame[i] = spriteinfo[spritenum].jumpStart;
 					}
 					x = actorX[i] - (camX_t8 << 1);
 					y = actorY[i] - (camY << 4);
