@@ -169,6 +169,7 @@ Sint16 hideCountdown;
 Sint16 playerDeathCountdown;
 Sint16 levelDoneCountdown;
 Sint16 rapidFireCountdown;
+Sint16 normalFireCountdown; //new: you can always hold down fire to shoot, but this many gameticks must pass between your shots
 Sint16 oldFirepower;
 Sint16 gotKey1;
 Sint16 gotKey2;
@@ -3005,6 +3006,7 @@ restart:
 	hideCountdown = 0;
 	superJump = false;
 	rapidFireCountdown = 0;
+	normalFireCountdown = 0;
 	playerDeathCountdown = 0;
 	wasFalling = false;
 	gotKey1 = gotKey2 = false;
@@ -3612,64 +3614,74 @@ restart:
 			}
 		}
 		// handle player shooting:
-		if (!teleportCounter && fireKeyDown)
+		if (fireKeyUp)
 		{
-			if (demoMode == DEMO_RECORD)
+			normalFireCountdown = 0;
+		}
+		else
+		{
+			if (normalFireCountdown)
+				--normalFireCountdown;
+			if (!teleportCounter && fireKeyDown)
 			{
-				demoKeys.fire = true;
-			}
-			if (!rapidFireCountdown)
-			{
-				fireKeyDown = false;
-			}
-			for (shotIndex = 0; shotIndex < 10 && shotX[shotIndex] != -99; shotIndex++);
-			if (shotIndex < 10 && playerShotsActive < playerFirepower)
-			{
-				playerShotsActive++;
-				if (powershotsLeft)
+				if (demoMode == DEMO_RECORD)
 				{
-					powershotsLeft--;
-					shotType[shotIndex] = 1;
+					demoKeys.fire = true;
 				}
-				else
-				{
-					shotType[shotIndex] = 0;
-				}
-				if (playerAimingUp)
-				{
-					shotFlyUp[shotIndex] = 1;
-					shotX[shotIndex] = playerScreenX+1;
-					shotY[shotIndex] = playerScreenY;
-				}
-				else
-				{
-					shotFlyUp[shotIndex] = 0;
-					if (playerDir)
-					{
-						shotX[shotIndex] = playerScreenX-2;
+				if (rapidFireCountdown || !normalFireCountdown) {
+					if (playerShotsActive < playerFirepower) {
+						for (shotIndex = 0; shotIndex < 10 && shotX[shotIndex] != -99; shotIndex++);
+						if (shotIndex < 10)
+						{
+							playerShotsActive++;
+							normalFireCountdown = 4; //roughly how long it takes to tap the key and then tap it again
+							if (powershotsLeft)
+							{
+								powershotsLeft--;
+								shotType[shotIndex] = 1;
+							}
+							else
+							{
+								shotType[shotIndex] = 0;
+							}
+							if (playerAimingUp)
+							{
+								shotFlyUp[shotIndex] = 1;
+								shotX[shotIndex] = playerScreenX+1;
+								shotY[shotIndex] = playerScreenY;
+							}
+							else
+							{
+								shotFlyUp[shotIndex] = 0;
+								if (playerDir)
+								{
+									shotX[shotIndex] = playerScreenX-2;
+								}
+								else
+								{
+									shotX[shotIndex] = playerScreenX+2;
+								}
+								shotY[shotIndex] = playerScreenY + spriteinfo[SPR_PLAYER].projectileDeltaY;
+							}
+							shotDir[shotIndex] = playerDir;
+							///////////////////
+							//this is useless:
+							shotIndex++;
+							if (shotIndex > 4)
+							{
+								shotIndex = 0;
+							}
+							///////////////////
+							if (!rapidFireCountdown)
+							{
+								PlaySound(SND_PLAYERSHOT);
+							}
+							else
+							{
+								PlaySound(SND_ENEMYSHOT);
+							}
+						}
 					}
-					else
-					{
-						shotX[shotIndex] = playerScreenX+2;
-					}
-					shotY[shotIndex] = playerScreenY + spriteinfo[SPR_PLAYER].projectileDeltaY;
-				}
-				shotDir[shotIndex] = playerDir;
-				///////////////////
-				//this is useless:
-				shotIndex++;
-				if (shotIndex > 4)
-				{
-					shotIndex = 0;
-				}
-				///////////////////
-				if (!rapidFireCountdown)
-				{
-					PlaySound(SND_PLAYERSHOT);
-				}
-				else
-				{
-					PlaySound(SND_ENEMYSHOT);
 				}
 			}
 		}
