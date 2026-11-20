@@ -78,6 +78,7 @@ const char CHEAT_QUARK[] = { KEY_Q, KEY_U, KEY_A, KEY_R, KEY_K };
 //note: can't use C, M, P, S, V because those are all functional keys
 const char CHEAT_ETHER[] = { KEY_E, KEY_T, KEY_H, KEY_E, KEY_R }; //the level skip code from Realms of Chaos
 const char CHEAT_BOUF[] = { KEY_B, KEY_O, KEY_U, KEY_F }; //the invincibility code from Jazz Jackrabbit
+const char CHEAT_AGY[] = { KEY_A, KEY_G, KEY_Y }; //it's just short for antigravity okay
 
 /*
 =============================================================================
@@ -333,6 +334,8 @@ void interrupt KB_Service(void)
 			levelDoneCountdown = -1; //special value to skip the summing up screen
 		} else if (COMPARE_CHEAT(CHEAT_BOUF)) {
 			hideCountdown = hideCountdown ? 0 : 0xFFFFu;
+		} else if (COMPARE_CHEAT(CHEAT_AGY)) {
+			FlipGravity();
 		}
 #undef COMPARE_CHEAT
 	}

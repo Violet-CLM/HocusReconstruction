@@ -145,6 +145,8 @@ Sint16 maxJumpIndex;
 Sint16 maxDeltaYIndex;
 Sint16 superJump;
 Sint16 superJumpCounter;
+Sint16 antiGrav; //bool
+Sint16 antiGravNoRepeatCountdown; //antigrav events don't go away when you touch them, so there needs to be a timer before you flip a second time
 Sint16 playerJumping;
 Sint16 camScrolled;
 Sint16 playerFalling;
@@ -1632,6 +1634,43 @@ draw_loop:
 	}
 }
 
+void DrawSprite_PlayerAntiGrav(Uint16 singleColor)
+{
+	register Uint16 layoutOff;
+	Uint16 pixOff, screenOff, originalScreenOff, skipAhead;
+
+	if (singleColor)
+		singleColor = screenpagePtr[2][singleColor]; //regular sprite drawing uses separate functions for single color sprites vs normal sprites, but antigrav is rare enough--and people's DOSboxes are fast enough--that I'm content to condense all antigrav player drawing into one function.
+	
+	layoutOff = spriteinfo[SPR_PLAYER].layoutStarts[playerDir][playerFrame]; //this is boilerplate from normal sprite drawing, but using known values like playerDir and playerFrame, because this function is only ever used to draw the player, not enemies.
+	pixOff = spriteOffsets[SPR_PLAYER] + spriteinfo[SPR_PLAYER].pixelsStarts[playerDir][playerFrame];
+	screenOff = originalScreenOff = playerScreenY*80 + playerScreenX + (spriteinfo[SPR_PLAYER].height - 1) * 80; //normally we want to start drawing from the top left corner of a sprite, but here, naturally, it's the BOTTOM left corner, so we need to know how tall the sprite is and so on. "80" is the width of the screen here, 320/4, because this uses VGA magic to draw to four columns at a time.
+	SetWriteMode(1);
+	
+	while (true) {
+		switch (spriteLayouts[SPR_PLAYER][layoutOff++]) {
+		case 0:
+			SetPlaneMask(spriteLayouts[SPR_PLAYER][layoutOff]);
+			screenOff = originalScreenOff;
+			layoutOff += 1;
+			continue;
+		case 1: {
+			skipAhead = *(Uint16*)(&spriteLayouts[SPR_PLAYER][layoutOff]);
+			skipAhead -= ((skipAhead + screenOff) / 80 - (screenOff / 80)) * 160; //this is the only part that's different: if the skipAhead value is supposed to move the drawing pointer to a lower row, it needs to move that pointer to a HIGHER row instead.
+			screenOff += skipAhead;
+			layoutOff += 2;
+			continue; }
+		case 2:
+			drawPtr[screenOff] = singleColor ? singleColor : screenpagePtr[2][pixOffSpritestart + pixOff];
+			pixOff += 1;
+			screenOff += 1;
+			continue;
+		}
+		//default
+		break; //end of sprite
+	}
+}
+
 void DrawSprite_SingleColor(Sint16 sprite, Sint16 x, Sint16 y, Sint16 dir, Sint16 frame, Uint16 pixOff)
 {
 	register Uint16 layoutOff, screenOff;
@@ -2447,6 +2486,11 @@ void ShowWizardText(Sint16 textnum)
 	SetDrawPage(!currDisplayPage);
 }
 
+void FlipGravity(void) {
+	antiGrav = !antiGrav;
+	PlaySound(SND_FLIPSWITCH); //I did extract the real Clyde noise once, but let's not bother adding new sound effects to Hocus
+	antiGravNoRepeatCountdown = 40;
+}
 
 enum keepValues {
 	keep_remove, keep_dont_delete_item, keep_remove_until_respawn_at_savepoint
@@ -2679,6 +2723,12 @@ void CheckTiles(void)
 					RemoveEventUntilRespawnAtSavepoint(infoindex, true);
 					RemoveEventUntilRespawnAtSavepoint(infoindex+1, true); //one tile to the right, because the SAVE graphic takes up two tiles
 				}
+				else if (itemtype == 13) //balloon
+				{
+					if (!antiGravNoRepeatCountdown)
+						FlipGravity();
+					keep = keep_dont_delete_item; //consistent with Clyde's Revenge puzzles I think? it's been a long long time tbh
+				}
 				if (iteminfos[infoval].firepower)
 				{
 					PlaySound(SND_YAHOO);
@@ -2775,7 +2825,7 @@ void CheckTiles(void)
 									switchtype = switches[num].type;
 									if (switchtype == 0)
 									{
-										if (*(mapMainLayer + ty*LEVEL_WIDTH + tx) != 255)
+										if (mapMainLayer[ty*LEVEL_WIDTH + tx] != 255)
 										{
 											*(mapTriggeredLayer + ty*LEVEL_WIDTH + tx) = 1;
 										}
@@ -2884,7 +2934,7 @@ void CheckTiles(void)
 					{
 						for (tx=keyholes[num].left; tx<=keyholes[num].right; tx++)
 						{
-							if (*(mapMainLayer + ty*LEVEL_WIDTH + tx) != 255)
+							if (mapMainLayer[ty*LEVEL_WIDTH + tx] != 255)
 							{
 								*(mapTriggeredLayer + ty*LEVEL_WIDTH + tx) = 1;
 							}
@@ -3005,6 +3055,8 @@ restart:
 	playerShotsActive = 0;
 	hideCountdown = 0;
 	superJump = false;
+	antiGrav = false;
+	antiGravNoRepeatCountdown = 0;
 	rapidFireCountdown = 0;
 	normalFireCountdown = 0;
 	playerDeathCountdown = 0;
@@ -3340,9 +3392,13 @@ restart:
 					{
 						DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
 					}
-					else
+					else if (!antiGrav)
 					{
 						DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffWhite);
+					}
+					else
+					{
+						DrawSprite_PlayerAntiGrav(pixOffWhite);
 					}
 				}
 				else if (
@@ -3354,9 +3410,13 @@ restart:
 					{
 						DrawSpriteClipped_SingleColor(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
 					}
-					else
+					else if (!antiGrav)
 					{
 						DrawSprite_SingleColor(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame, pixOffRed);
+					}
+					else
+					{
+						DrawSprite_PlayerAntiGrav(pixOffRed);
 					}
 				}
 				else //nothing special, draw sprite normally
@@ -3365,9 +3425,13 @@ restart:
 					{
 						DrawSpriteClipped(SPR_PLAYER, spriteinfo[SPR_PLAYER].width, playerScreenX, playerScreenY, playerDir, playerFrame);
 					}
-					else
+					else if (!antiGrav)
 					{
 						DrawSprite(SPR_PLAYER, playerScreenX, playerScreenY, playerDir, playerFrame);
+					}
+					else
+					{
+						DrawSprite_PlayerAntiGrav(0);
 					}
 				}
 			}
@@ -3694,6 +3758,10 @@ restart:
 			rapidFireCountdown = 0;
 			playerFirepower = oldFirepower;
 		}
+		if (antiGravNoRepeatCountdown)
+		{
+			antiGravNoRepeatCountdown--;
+		}
 		// update & draw player shots:
 		for (i=0; i<MAX_SHOTS; i++)
 		{
@@ -3704,35 +3772,35 @@ restart:
 				if (!shotDir[i])
 				{
 					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX + 1;
-					if (*(mapMainLayer+tileindex) == tileinfo.shootableTile)
+					if (mapMainLayer[tileindex] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex) = 255;
+						mapMainLayer[tileindex] = 255;
 						SpawnTwink(shotX[i]+2-(oddCamX<<1), shotY[i]-8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex+LEVEL_WIDTH) == tileinfo.shootableTile)
+					else if (mapMainLayer[tileindex+LEVEL_WIDTH] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex+LEVEL_WIDTH) = 255;
+						mapMainLayer[tileindex+LEVEL_WIDTH] = 255;
 						SpawnTwink(shotX[i]+2-(oddCamX<<1), shotY[i]+8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex+1) == tileinfo.shootableTile)
+					else if (mapMainLayer[tileindex+1] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex+1) = 255;
+						mapMainLayer[tileindex+1] = 255;
 						SpawnTwink(shotX[i]+6-(oddCamX<<1), shotY[i]-8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex+241) == tileinfo.shootableTile)
+					else if (mapMainLayer[tileindex+241] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex+241) = 255;
+						mapMainLayer[tileindex+241] = 255;
 						SpawnTwink(shotX[i]+6-(oddCamX<<1), shotY[i]+8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex) != 255 || *(mapMainLayer+tileindex+1) != 255)
+					else if (mapMainLayer[tileindex] != 255 || mapMainLayer[tileindex+1] != 255)
 					{
 						SpawnParticles((shotX[i]<<2)+24, shotY[i]+10);
 						shotX[i] = -99;
@@ -3773,35 +3841,35 @@ restart:
 				else	//shot is flying left!
 				{
 					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX + 1;
-					if (*(mapMainLayer+tileindex) == tileinfo.shootableTile)
+					if (mapMainLayer[tileindex] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex) = 255;
+						mapMainLayer[tileindex] = 255;
 						SpawnTwink(shotX[i]-2-(oddCamX<<1)+2, shotY[i]-8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex+LEVEL_WIDTH) == tileinfo.shootableTile)
+					else if (mapMainLayer[tileindex+LEVEL_WIDTH] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex+LEVEL_WIDTH) = 255;
+						mapMainLayer[tileindex+LEVEL_WIDTH] = 255;
 						SpawnTwink(shotX[i]-2-(oddCamX<<1)+2, shotY[i]+8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex-1) == tileinfo.shootableTile)
+					else if (mapMainLayer[tileindex-1] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex-1) = 255;
+						mapMainLayer[tileindex-1] = 255;
 						SpawnTwink(shotX[i]-4-(oddCamX<<1)+2, shotY[i]-8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex+239) == tileinfo.shootableTile)
+					else if (mapMainLayer[tileindex+239] == tileinfo.shootableTile)
 					{
-						*(mapMainLayer+tileindex+239) = 255;
+						mapMainLayer[tileindex+239] = 255;
 						SpawnTwink(shotX[i]-4-(oddCamX<<1)+2, shotY[i]+8);
 						shotX[i] = -99;
 						playerShotsActive--;
 					}
-					else if (*(mapMainLayer+tileindex-1) != 255 || *(mapMainLayer+tileindex) != 255)
+					else if (mapMainLayer[tileindex-1] != 255 || mapMainLayer[tileindex] != 255)
 					{
 						SpawnParticles((shotX[i]<<2)+1, shotY[i]+2);
 						shotX[i] = -99;
@@ -3855,21 +3923,21 @@ restart:
 				{
 					tileindex += LEVEL_WIDTH;
 				}
-				if (*(mapMainLayer+tileindex-playerDir) == tileinfo.shootableTile)
+				if (mapMainLayer[tileindex-playerDir] == tileinfo.shootableTile)
 				{
-					*(mapMainLayer+tileindex-playerDir) = 255;
+					mapMainLayer[tileindex-playerDir] = 255;
 					SpawnTwink(shotX[i]-1-(oddCamX<<1), shotY[i]-15);
 					shotX[i] = -99;
 					playerShotsActive--;
 				}
-				else if (*(mapMainLayer+tileindex-playerDir+1) == tileinfo.shootableTile)
+				else if (mapMainLayer[tileindex-playerDir+1] == tileinfo.shootableTile)
 				{
-					*(mapMainLayer+tileindex-playerDir+1) = 255;
+					mapMainLayer[tileindex-playerDir+1] = 255;
 					SpawnTwink(shotX[i]+3-(oddCamX<<1), shotY[i]-15);
 					shotX[i] = -99;
 					playerShotsActive--;
 				}
-				else if (*(mapMainLayer+tileindex) != 255)
+				else if (mapMainLayer[tileindex] != 255)
 				{
 					SpawnParticles((shotX[i]<<2)+8, shotY[i]+2);
 					shotX[i] = -99;
@@ -3910,7 +3978,7 @@ restart:
 		}	// end of "for (i=0; i<MAX_SHOTS; i++)
 		
 		if (!teleportCounter)
-		{
+		{ //normal movement, not teleporting:
 			if (jumpKeyDown && !playerJumping && !camScrolled && !playerFalling)
 			{
 				if (demoMode == DEMO_RECORD)
@@ -3941,13 +4009,21 @@ restart:
 			{
 				if (playerJumpIndex < maxDeltaYIndex)
 				{
-					playerY += jumpDeltaYs[playerJumpIndex];
+					if (!antiGrav)
+						playerY += jumpDeltaYs[playerJumpIndex];
+					else
+						playerY -= jumpDeltaYs[playerJumpIndex]; //MINUS
 					playerTileY = playerY/16;
-					tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2;
-					if (mapMainLayer[tileindex] != 255)
+					tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2; //top tile, head normally or feet in antigrav
+					if (antiGrav)
+						tileindex += (playerY & 15) ? LEVEL_WIDTH * 2 : LEVEL_WIDTH; //round up
+					if (mapMainLayer[tileindex] != 255) //hit your head on a ceiling
 					{
 						playerJumpIndex = (maxDeltaYIndex-1)-playerJumpIndex;
-						playerY += jumpDeltaYs[playerJumpIndex];
+						if (!antiGrav)
+							playerY += jumpDeltaYs[playerJumpIndex];
+						else
+							playerY -= jumpDeltaYs[playerJumpIndex]; //MINUS
 						playerTileY = playerY/16;
 					}
 					playerJumpIndex++;
@@ -3963,7 +4039,11 @@ restart:
 					jumpEnded = 1;
 				}
 			}
-			tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2 + 480;
+			tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2;
+			if (!antiGrav)
+				tileindex += LEVEL_WIDTH * 2; //under your feet
+			else
+				tileindex -= LEVEL_WIDTH; //above your upside-down feet
 			if (mapMainLayer[tileindex] != 255)
 			{
 				if (playerJumping && playerJumpIndex >= maxJumpIndex)
@@ -3979,13 +4059,25 @@ restart:
 					PlaySound(SND_HITFLOOR);
 				}
 			}
-			else if (!playerJumping && !playerDeathCountdown && !levelDoneCountdown)
+			else if (!playerJumping && !playerDeathCountdown && !levelDoneCountdown) //suddenly you're standing on an empty tile
 			{
-				playerY += 16;
-				if (*(mapMainLayer+tileindex+LEVEL_WIDTH) == 255)
+				if (!antiGrav)
 				{
-					playerFalling = 1;
-					wasFalling = true;
+					playerY += 16;
+					if (mapMainLayer[tileindex + LEVEL_WIDTH] == 255) //under your new position is also empty
+					{
+						playerFalling = 1;
+						wasFalling = true;
+					}
+				}
+				else
+				{
+					playerY -= 16;
+					if (mapMainLayer[tileindex - LEVEL_WIDTH] == 255) //above your new position is also empty
+					{
+						playerFalling = 1;
+						wasFalling = true;
+					}
 				}
 			}
 			if (jumpEnded && !playerFalling)
@@ -3993,118 +4085,182 @@ restart:
 				PlaySound(SND_HITFLOOR);
 			}
 			//handle East/West movement:
-			playerCanMoveW = playerCanMoveE = playerCanMoveNW = playerCanMoveNE = 0;
-			tileindex = playerTileY*LEVEL_WIDTH + (playerX/2);
-			i = playerY % 16;
-			if (!i)
-			{
-				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)==255)
-				{
-					playerCanMoveW = 1;
-				}
-				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
-				{
-					playerCanMoveNW = 1;
-				}
-				tileindex = playerTileY*LEVEL_WIDTH + (playerX+2)/2;
-				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)==255)
-				{
-					playerCanMoveE = 1;
-				}
-				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
-				{
-					playerCanMoveNE = 1;
-				}
-			}
-			else
-			{
-				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)==255 && *(mapMainLayer+tileindex+480)==255)
-				{
-					playerCanMoveW = 1;
-				}
-				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
-				{
-					playerCanMoveNW = 1;
-				}
-				tileindex = playerTileY*LEVEL_WIDTH + (playerX+2)/2;
-				if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+240)==255 && *(mapMainLayer+tileindex+480)==255)
-				{
-					playerCanMoveE = 1;
-				}
-				if (*(mapMainLayer+tileindex-LEVEL_WIDTH)==255 && *(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+LEVEL_WIDTH)!=255)
-				{
-					playerCanMoveNE = 1;
-				}
-			}
-			if (playerFalling || playerJumping)
-			{
-				playerCanMoveNW = playerCanMoveNE = 0;
-			}
 			playerWalking = 0;
-			if (leftKeyDown && playerX)
+			if (leftKeyDown || rightKeyDown) //this test is new, but none of the other code in here matters if you're not trying to move horizontally
 			{
-				if (demoMode == DEMO_RECORD)
+				playerCanMoveW = playerCanMoveE = playerCanMoveNW = playerCanMoveNE = 0;
+				tileindex = playerTileY*LEVEL_WIDTH + (playerX/2); //top tile of your two
+				i = playerY % 16;
+				if (!i) //exactly aligned with the top of the row
 				{
-					demoKeys.left = true;
+					if (leftKeyDown) //also new
+					{
+						if (mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH] == 255)
+						{
+							playerCanMoveW = 1;
+						} //only need to find out about NW if W is unavailable:
+						else if (!antiGrav)
+						{
+							if (mapMainLayer[tileindex - LEVEL_WIDTH] == 255 && mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH] != 255)
+							{
+								playerCanMoveNW = 1;
+							}
+						}
+						else //antigrav, NW is actually SW
+						{
+							if (mapMainLayer[tileindex] != 255 && mapMainLayer[tileindex + LEVEL_WIDTH] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH*2] == 255)
+							{
+								playerCanMoveNW = 1;
+							}
+						}
+					}
+					else //therefore rightKeyDown
+					{
+						tileindex = playerTileY * LEVEL_WIDTH + (playerX + 2) / 2;
+						if (mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH] == 255)
+						{
+							playerCanMoveE = 1;
+						} //only need to find out about NE if E is unavailable:
+						else if (!antiGrav)
+						{
+							if (mapMainLayer[tileindex - LEVEL_WIDTH] == 255 && mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH] != 255)
+							{
+								playerCanMoveNE = 1;
+							}
+						}
+						else //antigrav, NE is actually SE
+						{
+							if (mapMainLayer[tileindex] != 255 && mapMainLayer[tileindex + LEVEL_WIDTH] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH*2] == 255)
+							{
+								playerCanMoveNE = 1;
+							}
+						}
+					}
 				}
-				if (!playerDir)
+				else //halfway down into the row
 				{
-					playerDir = 1;
+					if (leftKeyDown) //also new
+					{
+						if (mapMainLayer[tileindex + LEVEL_WIDTH] == 255 && mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH * 2] == 255)
+						{
+							playerCanMoveW = 1;
+						}
+						else if (!antiGrav)
+						{
+							if (mapMainLayer[tileindex - LEVEL_WIDTH] == 255 && mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH] != 255)
+							{
+								playerCanMoveNW = 1;
+							}
+						}
+						else
+						{
+							if (mapMainLayer[tileindex] != 255 && mapMainLayer[tileindex + LEVEL_WIDTH] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH * 2] == 255)
+							{
+								playerCanMoveNW = 1;
+							}
+						}
+					}
+					else //therefore rightKeyDown
+					{
+						tileindex = playerTileY * LEVEL_WIDTH + (playerX + 2) / 2;
+						if (mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH * 2] == 255)
+						{
+							playerCanMoveE = 1;
+						}
+						else if (!antiGrav)
+						{
+							if (mapMainLayer[tileindex - LEVEL_WIDTH] == 255 && mapMainLayer[tileindex] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH] != 255)
+							{
+								playerCanMoveNE = 1;
+							}
+						}
+						else
+						{
+							if (mapMainLayer[tileindex] != 255 && mapMainLayer[tileindex + LEVEL_WIDTH] == 255 && mapMainLayer[tileindex + LEVEL_WIDTH * 2] == 255)
+							{
+								playerCanMoveNE = 1;
+							}
+						}
+					}
 				}
-				else if (playerCanMoveW)
+				if (playerFalling || playerJumping)
 				{
-					playerX--;
-					playerWalking = 1;
-					playerFrame++;
-					if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
-						playerFrame = spriteinfo[SPR_PLAYER].walkStart;
+					playerCanMoveNW = playerCanMoveNE = 0;
 				}
-				else if (playerCanMoveNW)
+				if (leftKeyDown && playerX)
 				{
-					playerX--;
-					playerY -= 16;
-					playerWalking = 1;
-					playerFrame++;
-					if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
-						playerFrame = spriteinfo[SPR_PLAYER].walkStart;
+					if (demoMode == DEMO_RECORD)
+					{
+						demoKeys.left = true;
+					}
+					if (!playerDir)
+					{
+						playerDir = 1;
+					}
+					else if (playerCanMoveW)
+					{
+						playerX--;
+						playerWalking = 1;
+						playerFrame++;
+						if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
+							playerFrame = spriteinfo[SPR_PLAYER].walkStart;
+					}
+					else if (playerCanMoveNW)
+					{
+						playerX--;
+						if (!antiGrav)
+							playerY -= 16;
+						else
+							playerY += 16;
+						playerWalking = 1;
+						playerFrame++;
+						if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
+							playerFrame = spriteinfo[SPR_PLAYER].walkStart;
+					}
 				}
-			}
-			if (rightKeyDown && playerX < 477)
-			{
-				if (demoMode == DEMO_RECORD)
+				if (rightKeyDown && playerX < 477)
 				{
-					demoKeys.right = 1;
-				}
-				if (playerDir)
-				{
-					playerDir = 0;
-				}
-				else if (playerCanMoveE)
-				{
-					playerX++;
-					playerWalking = 1;
-					playerFrame++;
-					if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
-						playerFrame = spriteinfo[SPR_PLAYER].walkStart;
-				}
-				else if (playerCanMoveNE)
-				{
-					playerX++;
-					playerY -= 16;
-					playerWalking = 1;
-					playerFrame++;
-					if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
-						playerFrame = spriteinfo[SPR_PLAYER].walkStart;
+					if (demoMode == DEMO_RECORD)
+					{
+						demoKeys.right = 1;
+					}
+					if (playerDir)
+					{
+						playerDir = 0;
+					}
+					else if (playerCanMoveE)
+					{
+						playerX++;
+						playerWalking = 1;
+						playerFrame++;
+						if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
+							playerFrame = spriteinfo[SPR_PLAYER].walkStart;
+					}
+					else if (playerCanMoveNE)
+					{
+						playerX++;
+						if (!antiGrav)
+							playerY -= 16;
+						else
+							playerY += 16;
+						playerWalking = 1;
+						playerFrame++;
+						if (playerFrame > spriteinfo[SPR_PLAYER].walkEnd)
+							playerFrame = spriteinfo[SPR_PLAYER].walkStart;
+					}
 				}
 			}
 			// handle elevators:
 			if (!wizardActivated && elevatorTile1 != -1)
 			{
-				i = 0;	//not used in this branch
-				tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2 + 480;
-				if (*(mapMainLayer+tileindex) == elevatorTile1 || *(mapMainLayer+tileindex) == elevatorTile2)
+				tileindex = playerTileY*LEVEL_WIDTH + (playerX+1)/2;
+				if (!antiGrav)
+					tileindex += LEVEL_WIDTH * 2;
+				else
+					tileindex -= LEVEL_WIDTH;
+				if (mapMainLayer[tileindex] == elevatorTile1 || mapMainLayer[tileindex] == elevatorTile2)
 				{
-					if (*(mapMainLayer+tileindex) == elevatorTile2)
+					if (mapMainLayer[tileindex] == elevatorTile2)
 					{
 						tileindex--;	//make sure tileindex points to the left tile of the elevator
 					}
@@ -4114,33 +4270,37 @@ restart:
 						{
 							demoKeys.up = true;
 						}
-						tileindex -= 720;
+						tileindex -= (antiGrav ? LEVEL_WIDTH : (LEVEL_WIDTH * 3));
 						useKeyDown = false;
 						useKeyUp = true;
-						if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+1)==255)
+						if (mapMainLayer[tileindex]==255 && mapMainLayer[tileindex+1]==255)
 						{
 							playerY -= 16;
-							tileindex += LEVEL_WIDTH*3;
+							tileindex += (antiGrav ? LEVEL_WIDTH : (LEVEL_WIDTH * 3));
 							helpindex = tileindex-LEVEL_WIDTH;
-							*(mapMainLayer+helpindex) = *(mapMainLayer+tileindex);
-							*(mapMainLayer+tileindex) = 255;
-							*(mapMainLayer+helpindex+1) = *(mapMainLayer+tileindex+1);
-							*(mapMainLayer+tileindex+1) = 255;
+							mapMainLayer[helpindex] = elevatorTile1;
+							mapMainLayer[tileindex] = 255;
+							mapMainLayer[helpindex+1] = elevatorTile2;
+							mapMainLayer[tileindex+1] = 255;
 							upKeyCounter = 0;
 						}
 					}
 					else if (downKeyDown)
 					{
-						//BUG? this doesn't write anything to the demo data
-						tileindex += LEVEL_WIDTH;
-						if (*(mapMainLayer+tileindex)==255 && *(mapMainLayer+tileindex+1)==255)
+						if (demoMode == DEMO_RECORD)
+						{
+							demoKeys.down = true;
+						}
+						tileindex += (!antiGrav ? LEVEL_WIDTH : (LEVEL_WIDTH * 3));
+						if (mapMainLayer[tileindex]==255 && mapMainLayer[tileindex+1]==255)
 						{
 							playerY += 16;
-							helpindex = tileindex-LEVEL_WIDTH;
-							*(mapMainLayer+tileindex) = *(mapMainLayer+helpindex);
-							*(mapMainLayer+helpindex) = 255;
-							*(mapMainLayer+tileindex+1) = *(mapMainLayer+helpindex+1);
-							*(mapMainLayer+helpindex+1) = 255;
+							tileindex -= (!antiGrav ? LEVEL_WIDTH : (LEVEL_WIDTH * 3));
+							helpindex = tileindex + LEVEL_WIDTH;
+							mapMainLayer[helpindex] = elevatorTile1;
+							mapMainLayer[tileindex] = 255;
+							mapMainLayer[helpindex+1] = elevatorTile2;
+							mapMainLayer[tileindex+1] = 255;
 							downKeyCounter = 0;
 						}
 					}
