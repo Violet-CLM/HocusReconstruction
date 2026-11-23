@@ -126,7 +126,6 @@ Sint16 demoSize;
 Sint16 levelIndex;
 Sint16 camWarp;
 Sint16 lookDeltaY;
-Sint16 zero_0;
 Sint16 playerX;
 Sint16 playerTileX;
 Sint16 playerTileY;
@@ -1661,7 +1660,8 @@ void DrawSprite_PlayerAntiGrav(Uint16 singleColor)
 			layoutOff += 2;
 			continue; }
 		case 2:
-			drawPtr[screenOff] = singleColor ? singleColor : screenpagePtr[2][pixOffSpritestart + pixOff];
+			if (screenOff < 80 * 16 * 10) //quadpixels per row, times rows per tile, times tiles per screen... only draw to the screen if it wouldn't be obscuring the HUD panel
+				drawPtr[screenOff] = singleColor ? singleColor : screenpagePtr[2][pixOffSpritestart + pixOff];
 			pixOff += 1;
 			screenOff += 1;
 			continue;
@@ -3066,7 +3066,6 @@ restart:
 	powershotsLeft = 0;
 	playerWalking = 0;
 	lookDeltaY = 5;
-	zero_0 = 0;
 	levelIndex = episode*9 + level;
 	shotIndex = 0;
 	for (i=0; i<MAX_SHOTS; i++)
@@ -4354,23 +4353,23 @@ restart:
 		{
 			downKeyCounter = 0;
 		}
+		if (antiGrav) //normally there are five rows of tiles above hocus, and three tiles below him; when gravity is reversed, we naturally want those numbers to also be reversed
+			lookDeltaY = 8 - lookDeltaY; //this feels like the easiest approach, use the original math while calculating the keyup/keydown stuff, but flip the numbers the rest of the time, a 0-8 range instead of an 8-0 range
 		if ((
 #ifdef VERSION_11
 			joyBtn3Down ||
 #endif
-			pgdnKeyDown || downKeyCounter) && lookDeltaY > 0 && zero_0 == 0)
+			pgdnKeyDown || downKeyCounter) && lookDeltaY > 0)
 		{
 			lookDeltaY--;
-			zero_0 = 0;
 		}
 		if ((
 #ifdef VERSION_11
 			joyBtn4Down ||
 #endif
-			pgupKeyDown || upKeyCounter) && lookDeltaY < 8 && zero_0 == 0)
+			pgupKeyDown || upKeyCounter) && lookDeltaY < 8)
 		{
 			lookDeltaY++;
-			zero_0 = 0;
 		}
 		if (
 #ifdef VERSION_11
@@ -4380,6 +4379,8 @@ restart:
 		{
 			lookDeltaY = 5;
 		}
+		if (antiGrav)
+			lookDeltaY = 8 - lookDeltaY; //so it defaults to 3 instead of 5
 		// handle hotkeys:
 		if (keyHitP && !delaytime)
 		{
