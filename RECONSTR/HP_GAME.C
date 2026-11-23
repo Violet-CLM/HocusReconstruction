@@ -3710,9 +3710,9 @@ restart:
 							}
 							if (playerAimingUp)
 							{
-								shotFlyUp[shotIndex] = 1;
+								shotFlyUp[shotIndex] = antiGrav ? -16 : 16; //vertical movement
 								shotX[shotIndex] = playerScreenX+1;
-								shotY[shotIndex] = playerScreenY;
+								shotY[shotIndex] = playerScreenY + (antiGrav * 16); //antiGrav is either 0 or 1, so when true, the shot starts one tile lower down than usual
 							}
 							else
 							{
@@ -3808,14 +3808,7 @@ restart:
 					}
 					else
 					{
-						if (shotFlyUp[i])	//always false here
-						{
-							shotY[i] -= 16;	//unreachable
-						}
-						else
-						{
-							shotX[i] += 4;
-						}
+						shotX[i] += 4;
 						if (shotX[i] > 79 || shotY[i] < 0)
 						{
 							shotX[i] = -99;
@@ -3877,14 +3870,7 @@ restart:
 					}
 					else
 					{
-						if (shotFlyUp[i])	//always false here
-						{
-							shotY[i] -= 16;	//unreachable
-						}
-						else
-						{
-							shotX[i] -= 4;
-						}
+						shotX[i] -= 4;
 						if (shotX[i] < -3 || shotY[i] < 0)
 						{
 							shotX[i] = -99;
@@ -3910,18 +3896,15 @@ restart:
 			}
 			else	//shot is flying up!
 			{
-				if (shotDir[i] == 0)
-				{
-					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX;
-				}
-				else
-				{
-					tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX + 1;
-				}
-				tileindex -= LEVEL_WIDTH;
-				if (tileindex < 0)
-				{
+				tileindex = (shotY[i]/16 + camY)*LEVEL_WIDTH + shotX[i]/4 + camX + shotDir[i]; //shotDir is 0 for right, 1 for left
+				if (shotFlyUp[i] > 0) { //flying upwards
+					tileindex -= LEVEL_WIDTH;
+					if (tileindex < 0)
+						tileindex += LEVEL_WIDTH;
+				} else { //flying downwards, shot during antigrav
 					tileindex += LEVEL_WIDTH;
+					if (tileindex >= LEVEL_SIZE)
+						tileindex -= LEVEL_WIDTH;
 				}
 				if (mapMainLayer[tileindex-playerDir] == tileinfo.shootableTile)
 				{
@@ -3945,14 +3928,7 @@ restart:
 				}
 				else
 				{
-					if (shotFlyUp[i])	//always true here
-					{
-						shotY[i] -= 16;
-					}
-					else
-					{
-						shotX[i] += 4;	//unreachable
-					}
+					shotY[i] -= shotFlyUp[i]; //normally 16, -16 for antigrav
 					if (shotX[i] > 79 || shotY[i] < 0)
 					{
 						shotX[i] = -99;
