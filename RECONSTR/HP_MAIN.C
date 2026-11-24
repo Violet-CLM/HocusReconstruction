@@ -548,19 +548,21 @@ play_loop_check:
 							if (level == 8)
 							{
 								WarpScreen();
-								if (episode == 0)
-									Finale1();
+								if (episode < BREWED_EPISODE_OFFSET) {
+									if (episode == 0)
+										Finale1();
 #if !SHAREWARE
-								if (episode == 1)
-									Finale2();
-								if (episode == 2)
-									Finale3();
-								if (episode == 3)
-									Finale4();
+									if (episode == 1)
+										Finale2();
+									if (episode == 2)
+										Finale3();
+									if (episode == 3)
+										Finale4();
 #endif
-								i = CheckHighscore(episode, score);
-								if (i)
-									EnterHighscore(episode, i-1);
+									i = CheckHighscore(episode, score);
+									if (i)
+										EnterHighscore(episode, i-1);
+								}
 							}
 							else
 							{
@@ -575,9 +577,11 @@ play_loop_check:
 						}
 						else if (gameResult == -1)
 						{
-							i = CheckHighscore(episode, score);
-							if (i)
-								EnterHighscore(episode, i-1);
+							if (episode < BREWED_EPISODE_OFFSET) {
+								i = CheckHighscore(episode, score);
+								if (i)
+									EnterHighscore(episode, i - 1);
+							}
 						}
 					}
 				}

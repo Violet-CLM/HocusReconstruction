@@ -22,6 +22,7 @@
 #include <MEM.H>
 #include <STDIO.H>
 #include <STDLIB.H>
+#include <STRING.H>
 
 #include "HP_MAIN.H"
 #include "HP_LEVEL.H"
@@ -123,7 +124,6 @@ struct {
 Sint16 demoIndex;
 Sint16 demoSize;
 
-Sint16 levelIndex;
 Sint16 camWarp;
 Sint16 lookDeltaY;
 Sint16 playerX;
@@ -3029,8 +3029,6 @@ restart:
 #ifdef VERSION_11
 	playerFirepower = 1;
 #endif
-	elevatorTile1 = levelElevatorTiles[episode][level][0];
-	elevatorTile2 = levelElevatorTiles[episode][level][1];
 	playerFiring = playerAimingUp = 0;
 	demoIndex = 0;
 	if (demoMode == DEMO_PLAY)
@@ -3046,7 +3044,8 @@ restart:
 	SetDrawPage(1);
 	ClearScreen();
 	SetDisplayPage(1);
-	PlayMusicChunk(MUSIC01_MID + levelMusicNumbers[episode][level], true);
+	if (episode < BREWED_EPISODE_OFFSET) //todo
+		PlayMusicChunk(MUSIC01_MID + levelMusicNumbers[episode][level], true);
 	tiletick = 0;
 	levelFlashRedCountdown = 0;
 	teleportCounter = 0;
@@ -3066,7 +3065,6 @@ restart:
 	powershotsLeft = 0;
 	playerWalking = 0;
 	lookDeltaY = 5;
-	levelIndex = episode*9 + level;
 	shotIndex = 0;
 	for (i=0; i<MAX_SHOTS; i++)
 	{
@@ -3105,22 +3103,72 @@ restart:
 	{
 		snowX[i] = -99;
 	}
-	OpenDatFile();
-	ReadDatChunk(E1L1_000 + levelNumbers[episode][level], &coordinates);
-	ReadDatChunk(E1L1_001 + levelNumbers[episode][level], &tileinfo);
-	ReadDatChunk(E1L1_002 + levelNumbers[episode][level], &messages);
-	ReadDatChunk(E1L1_003 + levelNumbers[episode][level], &teleporters);
-	ReadDatChunk(E1L1_004 + levelNumbers[episode][level], &switches);
-	ReadDatChunk(E1L1_005 + levelNumbers[episode][level], &inserts);
-	ReadDatChunk(E1L1_006 + levelNumbers[episode][level], &keyholes);
-	ReadDatChunk(E1L1_007 + levelNumbers[episode][level], &enemyinfos);
-	ReadDatChunk(E1L1_008 + levelNumbers[episode][level], &enemytriggers);
-	ReadDatChunk(E1L1_009 + levelNumbers[episode][level], mapBackLayer);
-	ReadDatChunk(E1L1_010 + levelNumbers[episode][level], mapMainLayer);
-	ReadDatChunk(E1L1_011 + levelNumbers[episode][level], mapInsertLayer);
-	ReadDatChunk(E1L1_012 + levelNumbers[episode][level], mapInfoLayer);
-	setmem(mapTriggeredLayer, LEVEL_SIZE, 0);
+
+	if (episode < BREWED_EPISODE_OFFSET) //normal: load all the level data from hocus.dat
+	{
+		elevatorTile1 = levelElevatorTiles[episode][level][0];
+		elevatorTile2 = levelElevatorTiles[episode][level][1];
+
+		OpenDatFile();
+		ReadDatChunk(E1L1_000 + levelNumbers[episode][level], &coordinates);
+		ReadDatChunk(E1L1_001 + levelNumbers[episode][level], &tileinfo);
+		ReadDatChunk(E1L1_002 + levelNumbers[episode][level], &messages);
+		ReadDatChunk(E1L1_003 + levelNumbers[episode][level], &teleporters);
+		ReadDatChunk(E1L1_004 + levelNumbers[episode][level], &switches);
+		ReadDatChunk(E1L1_005 + levelNumbers[episode][level], &inserts);
+		ReadDatChunk(E1L1_006 + levelNumbers[episode][level], &keyholes);
+		ReadDatChunk(E1L1_007 + levelNumbers[episode][level], &enemyinfos);
+		ReadDatChunk(E1L1_008 + levelNumbers[episode][level], &enemytriggers);
+		ReadDatChunk(E1L1_009 + levelNumbers[episode][level], mapBackLayer);
+		ReadDatChunk(E1L1_010 + levelNumbers[episode][level], mapMainLayer);
+		ReadDatChunk(E1L1_011 + levelNumbers[episode][level], mapInsertLayer);
+		ReadDatChunk(E1L1_012 + levelNumbers[episode][level], mapInfoLayer);
+	}
+	else //a home-brewed castle
+	{
+		elevatorTile1 = elevatorTile2 = -1; //todo
+
+		//Using mapTriggeredLayer as a character array to build the filepath to the .hpm file, because the whole array will be erased shortly after this
+		sprintf(mapTriggeredLayer, "Brewed\\%s\\%u.hpm", HomeBrewedCastleNames[episode - BREWED_EPISODE_OFFSET], level + 1);
+		if ((dat_fp = fopen(mapTriggeredLayer, "rb")) == NULL)
+			QuitError(ERROR_CANNOT_OPEN, mapTriggeredLayer);
+
+		fseek(dat_fp, 4, SEEK_SET);
+		fread(&coordinates,		sizeof(coordinates),	1, dat_fp);
+		fread(&tileinfo,		sizeof(tileinfo),		1, dat_fp);
+		fread(&messages,		sizeof(messages),		1, dat_fp);
+		fread(&teleporters,		sizeof(teleporters),	1, dat_fp);
+		fread(&switches,		sizeof(switches),		1, dat_fp);
+		fread(&inserts,			sizeof(inserts),		1, dat_fp);
+		fread(&keyholes,		sizeof(keyholes),		1, dat_fp);
+		fread(&enemyinfos,		sizeof(enemyinfos),		1, dat_fp);
+		fread(&enemytriggers,	sizeof(enemytriggers),	1, dat_fp);
+		for (x = 0; x < LEVEL_WIDTH; ++x) {
+			for (y = 0; y < LEVEL_HEIGHT; ++y) {
+				fread(mapBackLayer, 1, 1, dat_fp);
+				fread(mapMainLayer, 1, 1, dat_fp);
+				fread(mapInsertLayer, 1, 1, dat_fp);
+				fseek(dat_fp, 1, SEEK_CUR);
+				fread(mapInfoLayer, 2, 1, dat_fp);
+				mapBackLayer += LEVEL_WIDTH;
+				mapMainLayer += LEVEL_WIDTH;
+				mapInsertLayer += LEVEL_WIDTH;
+				mapInfoLayer += LEVEL_WIDTH;
+			}
+			mapBackLayer -= LEVEL_SIZE - 1;
+			mapMainLayer -= LEVEL_SIZE - 1;
+			mapInsertLayer -= LEVEL_SIZE - 1;
+			mapInfoLayer -= LEVEL_SIZE - 1;
+		}
+		mapBackLayer -= LEVEL_WIDTH;
+		mapMainLayer -= LEVEL_WIDTH;
+		mapInsertLayer -= LEVEL_WIDTH;
+		mapInfoLayer -= LEVEL_WIDTH;
+		episode = 0; //for graphics... todo
+	}
 	CloseDatFile();
+
+	setmem(mapTriggeredLayer, LEVEL_SIZE, 0);
 	treasureTotal=treasureFound=0;
 	for (i=0; i<LEVEL_SIZE; i++)
 	{

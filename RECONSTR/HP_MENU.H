@@ -157,4 +157,6 @@ void WarpScreen(void);
 
 extern Uint8 showRecordDemoOption;
 
+extern char HomeBrewedCastleNames[128][13];
+
 #endif
