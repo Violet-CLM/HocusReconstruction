@@ -501,7 +501,7 @@ Check for command line options! The original game did not use them.
 			break;
 
 		case 0:	// Begin a new game
-			menuResult = EpisodeMenu();
+			menuResult = EpisodeMenu(true);
 			if (menuResult != -1)
 			{
 				if (!isRegisteredVersion && menuResult >= 1 && menuResult <= 3)
@@ -510,7 +510,15 @@ Check for command line options! The original game did not use them.
 				}
 				else
 				{
-					episode = menuResult;
+					if (menuResult == 4) { //even allowed in shareware versions
+						menuResult = HomeBrewedCastlesMenu();
+						if (menuResult == -1)
+							break;
+						//else will return an index to the HomeBrewedCastleNames array
+						episode = menuResult + BREWED_EPISODE_OFFSET; //used for signalling to HP_GAME.C later which files to read
+					} else {
+						episode = menuResult;
+					}
 					level = 0;
 					menuResult = SkillMenu();
 					if (menuResult != -1)
@@ -669,7 +677,7 @@ options_menu:
 			ShowPreviews();	// Preview future levels
 #else
 			// Warp to a level (new)
-			if ((episode = EpisodeMenu()) != -1 && (level = LevelMenu()) != -1 && (skill = SkillMenu()) != -1)
+			if ((episode = EpisodeMenu(false)) != -1 && (level = LevelMenu()) != -1 && (skill = SkillMenu()) != -1)
 			{
 				score = 0;
 				goto play_loop;

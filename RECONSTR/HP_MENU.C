@@ -25,6 +25,8 @@
 #include <TIME.H>
 #include <STDLIB.H>
 #include <STRING.H>
+#include <DIR.H> //for the Home-Brewed Castles menu
+#include <SYS/STAT.H> //to test whether files exist
 
 #include "HP_MAIN.H"
 #include "HP_GRAPH.H"
@@ -140,7 +142,8 @@ char *episodeMenuLines[] =
 	"Time Tripping",
 	"Shattered Worlds",
 	"Warped and Weary",
-	"Destination Home"
+	"Destination Home~",
+	"Home-Brewed Castles" //new, obviously
 };
 
 // Note: The Sound, Music and Joystick lines are being modified by InitMenu,
@@ -278,6 +281,109 @@ Sint16 starMoved[NUMSTARS];
 Uint8 starSpeed[NUMSTARS];
 Uint8 starBrightness[NUMSTARS];
 Uint8 starDeltaBright[NUMSTARS];
+
+//////////////
+// Stuff related to the Home-Brewed Castles menu:
+//////////////
+
+char HomeBrewedCastleNames[128][13];
+
+Sint16 AtLeastOneHomeBrewedCastle(void) { //returns true if your Hocus folder has a "Brewed" subfolder containing at least one subfolder containing a file named "1.hpm" (the first level of a home-brewed castle)
+	struct stat fileExists;
+	struct ffblk findResults;
+	int fileFound;
+	Sint16 result = false;
+
+	if (!chdir("Brewed")) { //the Brewed subfolder exists (returning 0 means success)
+		fileFound = findfirst("*", &findResults, FA_DIREC); //start looking through all subfolders inside Brewed
+		while (!fileFound) { //returning 0 means success
+			if ((findResults.ff_attrib & FA_DIREC) && (findResults.ff_name[0] != '.')) { //the most recently found file is a folder, and more specifically, neither the "." nor ".." special folders
+				if (!chdir(findResults.ff_name)) { //able to chdir into it
+					if (!stat("1.hpm", &fileExists)) //a file named "1.hpm" exists in this subfolder
+						result = true;
+					chdir("../"); //go back up to the Brewed folder
+				}
+			}
+			if (result) //at least one "1.hpm" has been found
+				break;
+			fileFound = findnext(&findResults); //continue looping through Brewed's subfolders
+		}
+		chdir("../"); //go back up to the Hocus folder
+	}
+	return result;
+}
+
+Sint8 HomeBrewedCastlesMenu(void) {
+	struct stat fileExists;
+	struct ffblk findResults;
+	int fileFound;
+
+#define BREWS_PER_PAGE 6 //somewhat arbitrary, though Hocus's menu-drawing code does have an actual line limit, and there's also a header line, and up to two other lines ("Next Page" and "Prev Page")
+
+	Uint8 numberOfBrews = 0;
+	Uint8 firstBrewToShow = 0; //effectively which page you're on
+	Uint8 showNextPage;
+	Sint8 i;
+
+	menuHasHeadline = 1; //the first menuLines entry is a header text
+	menuBottomIndex = 1; //I don't actually know what this does
+	newMenuPos = 0;
+
+	if (!chdir("Brewed")) { //pretty similar code to AtLeastOneHomeBrewedCastle above, but instead of stopping at the first folder with a "1.hpm" here we want to record them all one by one
+		fileFound = findfirst("*", &findResults, FA_DIREC);
+		while (!fileFound) {
+			if ((findResults.ff_attrib & FA_DIREC) && (findResults.ff_name[0] != '.')) {
+				if (!chdir(findResults.ff_name)) {
+					if (!stat("1.hpm", &fileExists))
+						memcpy(HomeBrewedCastleNames[numberOfBrews++], findResults.ff_name, 13); //these are fixed-size char arrays, so why bother with strcpy
+					chdir("../");
+					if (numberOfBrews >= 128) //arbitrary, ridiculously high maximum number of fan episodes
+						break;
+				}
+			}
+			fileFound = findnext(&findResults);
+		}
+		chdir("../");
+	}
+
+	if (numberOfBrews == 0) //something went wrong
+		return -1;
+
+	menuLines[0] = "Select a Home Brew";
+
+	while (true) { //this loop covers the possibility of multiple pages of home brews: each time the loop resets, a different list of brew names gets drawn to the screen.
+		menuNumLines = numberOfBrews - firstBrewToShow; //firstBrewToShow is effectively which page you're on, every time you choose Next Page then it gets BREWS_PER_PAGE added to it.
+		if (menuNumLines > BREWS_PER_PAGE) {
+			menuNumLines = BREWS_PER_PAGE;
+			showNextPage = true;
+		}
+		else //there's enough room on the page to show all (remaining) brews without needing a Next Page option
+		{
+			showNextPage = false;
+		}
+		for (i = 0; i < menuNumLines; ++i)
+			menuLines[i + 1] = HomeBrewedCastleNames[i + firstBrewToShow];
+		menuNumLines += 1; //for the "Select a Home Brew" header
+		if (showNextPage)
+			menuLines[menuNumLines++] = "Next Page";
+		if (firstBrewToShow)
+			menuLines[menuNumLines++] = "Prev Page";
+
+		DrawMenu();
+		i = HandleMenu(0);
+
+		episodeMenuPos = 4; //don't save the menu pos in this menu, only remember where it was from the episode selection menu
+
+		if (i == -1) //pressed Esc
+			return -1;
+		else if (showNextPage && i == BREWS_PER_PAGE) //selected Next Page
+			firstBrewToShow += BREWS_PER_PAGE;
+		else if (firstBrewToShow && i == menuNumLines - 2) //selected Prev Page
+			firstBrewToShow -= BREWS_PER_PAGE;
+		else //selected a regular item, time to play that specific home brew!
+			return i + firstBrewToShow;
+	}
+}
 
 //////////////
 // Functions:
@@ -1255,7 +1361,7 @@ void DrawMenu(void)
 #if SHAREWARE
 		if (menuNumber == 1)
 		{
-			if (i == 1)
+			if (i == 1 || i == 5)
 			{
 				DrawMenuItem(x, y, GRD_WHITE, GRD_RED, menuLines[i]);
 			}
@@ -1613,9 +1719,14 @@ Sint8 MainMenu(void)
 	return HandleMenu(1);
 }
 
-Sint8 EpisodeMenu(void)
+Sint8 EpisodeMenu(Uint16 showHomeBrewed)
 {
 	InitMenu(1);
+	if (
+		!showHomeBrewed || //this is the Warp To Level menu, we only want official levels
+		!AtLeastOneHomeBrewedCastle() //there are no home-brewed castle folders available
+	)
+		menuNumLines -= 1; //show only the regular four episodes
 	DrawMenu();
 	return HandleMenu(0);
 }

@@ -53,6 +53,8 @@ enum {GRD_NOTHING=0, GRD_BLUE, GRD_RED, GRD_GREEN, GRD_WHITE, GRD_GOLD, GRD_PINK
 
 #endif
 
+#define BREWED_EPISODE_OFFSET 100
+
 //////////
 // Types:
 //////////
@@ -116,7 +118,8 @@ void HighscoreMenu(Uint16 timed);
 void StoreMenuPos(void);
 Sint8 HandleMenu(Uint16 exitToDemo);
 Sint8 MainMenu(void);
-Sint8 EpisodeMenu(void);
+Sint8 EpisodeMenu(Uint16 showHomeBrewed);
+Sint8 HomeBrewedCastlesMenu(void);
 Sint8 OptionsMenu(void);
 Sint8 LevelMenu(void);
 Sint8 SkillMenu(void);
